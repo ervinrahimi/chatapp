@@ -1,15 +1,17 @@
-"use client"
+"use client" /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import * as React from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { MessageCircle, X, Send, Users } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { RecordId } from "surrealdb"
+import { cn } from "@/lib/utils"
 import sdb from "@/db/surrealdb"
+import Cookies from "js-cookie"
+import * as React from "react"
 
 interface Message {
   id: string
@@ -18,43 +20,57 @@ interface Message {
   created_at: string
 }
 
-export function ChatWidget() {
+interface AdminsList {
+  adminsList: {
+    id: string
+    imageUrl: string
+    firstName: string
+    lastName: string
+    emailAddresses: string[]
+  }[]
+}
+
+export function ChatWidget({ adminsList }: AdminsList) {
+  // Initial admin greeting message
+  const initialAdminMessage: Message = {
+    id: "admin-msg-1",
+    content: "Hello! How can I assist you today?",
+    sender_id: "admin",
+    created_at: new Date().toISOString(),
+  }
+
+  // State declarations
   const [isOpen, setIsOpen] = React.useState(false)
-  const [message, setMessage] = React.useState("")
-  const [messages, setMessages] = React.useState<Message[]>([
-    {
-      id: "admin-msg-1",
-      content: "Hello! How can I assist you today?",
-      sender_id: "admin",
-      created_at: new Date().toISOString(),
-    },
-  ])
+  const [messages, setMessages] = React.useState<Message[]>([initialAdminMessage])
   const [showMainAdmin, setShowMainAdmin] = React.useState(false)
   const [showUserInfoDialog, setShowUserInfoDialog] = React.useState(true)
   const [userName, setUserName] = React.useState("")
   const [userEmail, setUserEmail] = React.useState("")
   const [dbClient, setDbClient] = React.useState<any>(null)
-  const [customerId, setCustomerId] = React.useState<string | null>(null)
-  const [chatId, setChatId] = React.useState<string | null>(null)
+  const [chatUserId, setChatUserId] = React.useState<any>(null)
+  const [chatId, setChatId] = React.useState<any>(null)
   const [chatStatus, setChatStatus] = React.useState("viewed")
-  // Save the complete chat record to get admin_id
   const [chat, setChat] = React.useState<any>(null)
-  // New state to store real admins from the database
-  const [admins, setAdmins] = React.useState<any[]>([])
+  const [message, setMessage] = React.useState("")
 
+  // Ref to track end of messages for scrolling
   const messagesEndRef = React.useRef<HTMLDivElement>(null)
 
+  // Scroll to bottom helper function
   const scrollToBottom = React.useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [])
 
+  // Scroll to bottom whenever chat is open and user info dialog is not displayed
   React.useEffect(() => {
     if (isOpen && !showUserInfoDialog) {
       scrollToBottom()
     }
   }, [isOpen, showUserInfoDialog, scrollToBottom])
 
+  // Connect to the SurrealDB database
   React.useEffect(() => {
+    console.log(adminsList)
     const connectToDB = async () => {
       try {
         const db = await sdb()
@@ -64,23 +80,42 @@ export function ChatWidget() {
       }
     }
     connectToDB()
+  }, [adminsList])
+
+  // Read user info from cookies (if exists)
+  React.useEffect(() => {
+    const chatUserCookie = Cookies.get("chatUser")
+    if (chatUserCookie) {
+      try {
+        const { chatUserId, chatId, userEmail, userName } = JSON.parse(chatUserCookie)
+        const convertedChatUserId = new RecordId("ChatUser", chatUserId)
+        const convertedChatId = new RecordId("Chat", chatId)
+        setChatUserId(convertedChatUserId)
+        setChatId(convertedChatId)
+        setUserEmail(userEmail)
+        setUserName(userName)
+        setShowUserInfoDialog(false)
+      } catch (error) {
+        console.error("Error parsing chatUser cookie:", error)
+      }
+    }
   }, [])
 
   // Live subscription for messages
   React.useEffect(() => {
     if (!dbClient || !chatId) return
 
-    let queryId: string | null = null
-
-    const setupLiveQuery = async () => {
+    const setupMessages = async () => {
       try {
+        // Fetch all messages for the current chat
         const res = await dbClient.query(
-          `SELECT * FROM Message WHERE chat_id = '${chatId}' ORDER BY created_at ASC`
+          `SELECT * FROM Message WHERE chat_id = ${chatId} ORDER BY created_at ASC`
         )
         const initialMessages = res?.[0] || []
-        setMessages((prev) => [...prev, ...initialMessages])
+        setMessages([initialAdminMessage, ...initialMessages])
 
-        queryId = await dbClient.live("Message")
+        // Set up live subscription for message events
+        const queryId = await dbClient.live("Message")
         dbClient.subscribeLive(queryId, (action: string, result: any) => {
           if (action === "CLOSE") return
           if (action === "CREATE") {
@@ -94,24 +129,14 @@ export function ChatWidget() {
           }
         })
       } catch (err) {
-        console.error("Error setting up live query:", err)
+        console.error("Error setting up live messages:", err)
       }
     }
 
-    setupLiveQuery()
-
-    return () => {
-      if (queryId) {
-        dbClient
-          .kill(queryId)
-          .catch((err: unknown) =>
-            console.error("Error killing live query:", err)
-          )
-      }
-    }
+    setupMessages()
   }, [dbClient, chatId])
 
-  // Live subscription for chat to get updates (both status and admin_id)
+  // Live subscription for chat status updates (to receive changes in status and admin_id)
   React.useEffect(() => {
     if (!dbClient || !chatId) return
 
@@ -146,67 +171,18 @@ export function ChatWidget() {
     }
   }, [dbClient, chatId])
 
-  // Live subscription for admins
-  React.useEffect(() => {
-    if (!dbClient) return
+  // Determine the active admin based on the chat record's admin_id field
+  const activeAdmin = chat?.admin_id ? adminsList.find((admin) => String(admin.id) === String(chat.admin_id)) : null
 
-    let adminQueryId: string | null = null
-
-    const setupLiveAdmins = async () => {
-      try {
-        // Initial fetch of admins list
-        const res = await dbClient.query(`SELECT * FROM ChatAdmin`)
-        const initialAdmins = res?.[0] || []
-        setAdmins(initialAdmins)
-
-        adminQueryId = await dbClient.live("ChatAdmin")
-        dbClient.subscribeLive(adminQueryId, (action: string, result: any) => {
-          if (action === "CLOSE") return
-          if (action === "CREATE") {
-            setAdmins((prev) => [...prev, result])
-          } else if (action === "UPDATE") {
-            setAdmins((prev) =>
-              prev.map((admin) => (admin.id === result.id ? result : admin))
-            )
-          } else if (action === "DELETE") {
-            setAdmins((prev) =>
-              prev.filter((admin) => admin.id !== result.id)
-            )
-          }
-        })
-      } catch (err) {
-        console.error("Error setting up live admins:", err)
-      }
-    }
-
-    setupLiveAdmins()
-
-    return () => {
-      if (adminQueryId) {
-        dbClient
-          .kill(adminQueryId)
-          .catch((err: unknown) =>
-            console.error("Error killing live admins query:", err)
-          )
-      }
-    }
-  }, [dbClient])
-
-  // Determine the active admin based on the admin_id field from the chat record
-  const activeAdmin = chat?.admin_id
-    ? admins.find(
-        (admin) => String(admin.id) === String(chat.admin_id)
-      )
-    : null
-
+  // Handle sending a new message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!message.trim() || !customerId || !chatId) return
+    if (!message.trim() || !chatUserId || !chatId) return
 
     try {
       await dbClient.create("Message", {
         chat_id: chatId,
-        sender_id: customerId,
+        sender_id: chatUserId,
         content: message,
         sent_at: new Date(),
       })
@@ -217,20 +193,21 @@ export function ChatWidget() {
     }
   }
 
+  // Handle submission of user information and chat creation
   const handleUserInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (userEmail && dbClient) {
       try {
-        // Check for existing user by email
+        // Check if a user with the provided email already exists
         const res = await dbClient.query(
           `SELECT * FROM ChatUser WHERE email = '${userEmail}'`
         )
         let user
         if (res?.[0] && res[0].length > 0) {
-          // Existing user: use existing record info
+          // Existing user: use the existing record
           user = res[0][0]
         } else {
-          // User does not exist; create a new user in ChatUser table
+          // Create a new user record in ChatUser table
           user = await dbClient.create("ChatUser", {
             clerk_id: "mxetjcvk4yfeygzxq0y1",
             name: userName,
@@ -241,7 +218,7 @@ export function ChatWidget() {
 
         const userId = user.id || user[0]?.id
 
-        // Create a new chat using the user_id field according to the new model
+        // Create a new chat record with the user_id field
         const chat = await dbClient.create("Chat", {
           user_id: userId,
           status: "viewed",
@@ -252,20 +229,59 @@ export function ChatWidget() {
 
         const chatID = chat.id || chat[0]?.id
 
-        setCustomerId(userId)
+        setChatUserId(userId)
         setChatId(chatID)
         setShowUserInfoDialog(false)
+
+        // Save user info in a cookie for 3 days
+        Cookies.set(
+          "chatUser",
+          JSON.stringify({
+            chatUserId: userId.id,
+            chatId: chatID.id,
+            userEmail,
+            userName,
+          }),
+          { expires: 3 }
+        )
       } catch (err) {
         console.error("Error saving user info or creating chat:", err)
       }
     }
   }
 
+  // Fetch the chat record on page load
+  React.useEffect(() => {
+    if (!dbClient || !chatId) return
+
+    const fetchChatRecord = async () => {
+      try {
+        const res = await dbClient.query(`SELECT * FROM Chat WHERE id = ${chatId}`)
+        const chatRecord = res?.[0]?.[0]
+        if (chatRecord) {
+          setChat(chatRecord)
+          setChatStatus(chatRecord.status)
+          setShowMainAdmin(chatRecord.status === "active")
+        }
+      } catch (error) {
+        console.error("Error fetching chat record:", error)
+      }
+    }
+
+    fetchChatRecord()
+  }, [dbClient, chatId])
+
+  // Render the chat interface with messages and header
   const renderChatInterface = () => {
-    const sortedMessages = [...messages].sort(
-      (a, b) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    )
+    // Separate the initial admin greeting message from the rest of the messages
+    const adminMessage = messages.find((msg) => msg.id === "admin-msg-1")
+    const otherMessages = messages
+      .filter((msg) => msg.id !== "admin-msg-1")
+      .sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      )
+    const sortedMessages = adminMessage ? [adminMessage, ...otherMessages] : otherMessages
 
     return (
       <Card className="w-[320px] h-[480px] flex flex-col">
@@ -277,20 +293,20 @@ export function ChatWidget() {
                   <>
                     <Avatar>
                       <AvatarImage
-                        src={activeAdmin.image || ""}
-                        alt={`${activeAdmin.firstname} ${activeAdmin.lastname}`}
+                        src={activeAdmin.imageUrl || ""}
+                        alt={`${activeAdmin.firstName} ${activeAdmin.lastName}`}
                       />
                       <AvatarFallback>
-                        {activeAdmin.firstname[0]}
-                        {activeAdmin.lastname[0]}
+                        {activeAdmin.firstName[0]}
+                        {activeAdmin.lastName[0]}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <h3 className="font-semibold">
-                        {activeAdmin.firstname} {activeAdmin.lastname}
+                        {activeAdmin.firstName} {activeAdmin.lastName}
                       </h3>
                       <p className="text-xs text-muted-foreground">
-                        {activeAdmin.email}
+                        {activeAdmin.emailAddresses[0]}
                       </p>
                     </div>
                   </>
@@ -301,21 +317,21 @@ export function ChatWidget() {
             ) : (
               <div className="flex items-center gap-2">
                 <div className="flex -space-x-2">
-                  {admins.slice(0, 3).map((admin) => (
+                  {adminsList.slice(0, 3).map((admin) => (
                     <Avatar key={admin.id} className="border-2 border-background">
                       <AvatarImage
-                        src={admin.image || ""}
-                        alt={`${admin.firstname} ${admin.lastname}`}
+                        src={admin.imageUrl || ""}
+                        alt={`${admin.firstName} ${admin.lastName}`}
                       />
                       <AvatarFallback>
-                        {admin.firstname[0]}
-                        {admin.lastname[0]}
+                        {admin.firstName[0]}
+                        {admin.lastName[0]}
                       </AvatarFallback>
                     </Avatar>
                   ))}
                 </div>
-                {admins.length > 3 && (
-                  <span className="text-sm">+{admins.length - 3}</span>
+                {adminsList.length > 3 && (
+                  <span className="text-sm">+{adminsList.length - 3}</span>
                 )}
               </div>
             )}
@@ -343,8 +359,7 @@ export function ChatWidget() {
           <ScrollArea className="h-[340px] p-4">
             <div className="space-y-4">
               {sortedMessages.map((msg) => {
-                const isUserMessage =
-                  String(msg.sender_id) === String(customerId)
+                const isUserMessage = String(msg.sender_id) === String(chatUserId)
                 return (
                   <div
                     key={msg.id}
@@ -387,6 +402,7 @@ export function ChatWidget() {
     )
   }
 
+  // Render the user information form for starting a chat
   const renderUserInfoForm = () => (
     <Card className="w-[320px] h-[480px] flex flex-col">
       <CardHeader className="space-y-1.5 p-4">

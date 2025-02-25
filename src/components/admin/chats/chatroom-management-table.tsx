@@ -1,4 +1,4 @@
-'use client';
+'use client' /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import * as React from 'react';
 import {
@@ -13,7 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { ArrowUpDown, ChevronDown, MoreHorizontal, Send, X } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, MoreHorizontal, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -45,27 +45,65 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Textarea } from '@/components/ui/textarea';
-import sdb from '@/db/surrealdb'; // اتصال به SurrealDB
+import sdb from '@/db/surrealdb';
 
-// تعریف اینترفیس ChatRoom با فیلدهای مورد نیاز
+// کامپوننت جدید:
+import { AdminChatRoom } from './AdminChatRoom';
+
 interface ChatRoom {
   id: string;
   user: string;
-  admin: string;
-  status: 'pending' | 'activated' | 'viewed' | 'closed';
-  lastMessage: string;
+  status: 'pending' | 'active' | 'viewed' | 'closed';
   createdAt: string;
 }
+
+interface AdminsList {
+  adminsList: {
+    id: string;
+    imageUrl: string;
+    firstName: string;
+    lastName: string;
+    emailAddresses: string[];
+  }[];
+}
+
+interface Message {
+  id: string;
+  sender: 'user' | 'admin';
+  content: string;
+  timestamp: string;
+}
+
+// پیام‌های نمونه (دقیقاً همانند قبل)
+const sampleMessages: Message[] = [
+  { id: '1', sender: 'user', content: 'سلام، من یک سوال دارم', timestamp: '2024-02-21T10:00:00' },
+  {
+    id: '2',
+    sender: 'admin',
+    content: 'سلام، بفرمایید. چطور می‌توانم کمکتان کنم؟',
+    timestamp: '2024-02-21T10:05:00',
+  },
+  {
+    id: '3',
+    sender: 'user',
+    content: 'من در مورد نحوه استفاده از این پلتفرم سوال دارم',
+    timestamp: '2024-02-21T10:10:00',
+  },
+  {
+    id: '4',
+    sender: 'admin',
+    content: 'بله، حتما. چه بخشی از پلتفرم برایتان مبهم است؟',
+    timestamp: '2024-02-21T10:15:00',
+  },
+  {
+    id: '5',
+    sender: 'user',
+    content: 'من نمی‌دانم چطور می‌توانم یک پروژه جدید ایجاد کنم',
+    timestamp: '2024-02-21T10:20:00',
+  },
+];
 
 // تعریف ستون‌ها با استفاده از TanStack React Table
 const columns: ColumnDef<ChatRoom>[] = [
@@ -89,7 +127,7 @@ const columns: ColumnDef<ChatRoom>[] = [
           className={
             status === 'pending'
               ? 'text-yellow-600'
-              : status === 'activated'
+              : status === 'active'
               ? 'text-green-600'
               : status === 'viewed'
               ? 'text-blue-600'
@@ -100,8 +138,8 @@ const columns: ColumnDef<ChatRoom>[] = [
         >
           {status === 'pending'
             ? 'Pending'
-            : status === 'activated'
-            ? 'Activated'
+            : status === 'active'
+            ? 'Active'
             : status === 'viewed'
             ? 'Viewed'
             : status === 'closed'
@@ -148,20 +186,12 @@ const columns: ColumnDef<ChatRoom>[] = [
             <Sheet>
               <SheetTrigger asChild>
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                  Send message
+                  View Chatroom
                 </DropdownMenuItem>
               </SheetTrigger>
-              <SheetContent>
-                <SheetHeader>
-                  <SheetTitle>Send message</SheetTitle>
-                  <SheetDescription>Send your message to the user.</SheetDescription>
-                </SheetHeader>
-                <div className="py-4">
-                  <Textarea placeholder="Type your message here..." className="mb-2" />
-                  <Button className="w-full">
-                    <Send className="mr-2 h-4 w-4" /> Send message
-                  </Button>
-                </div>
+              <SheetContent side="right" className="w-full sm:max-w-full">
+                {/* اینجاست که از کامپوننت جداگانه استفاده می‌کنیم */}
+                <AdminChatRoom messages={sampleMessages} />
               </SheetContent>
             </Sheet>
             <AlertDialog>
@@ -193,7 +223,7 @@ const columns: ColumnDef<ChatRoom>[] = [
 ];
 
 // کامپوننت اصلی جدول مدیریت چت روم
-export function ChatRoomManagementTable() {
+export function ChatRoomManagementTable({ adminsList }: AdminsList) {
   const [data, setData] = React.useState<ChatRoom[]>([]);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -205,9 +235,9 @@ export function ChatRoomManagementTable() {
     async function fetchData() {
       try {
         const db = await sdb();
-        // Query برای دریافت اطلاعات Chat به همراه اطلاعات مشتری و ادمین
+        // Query برای دریافت اطلاعات Chat به همراه اطلاعات مشتری
         const res = await db.query(
-          'SELECT *, customer_id.* as ChatUser, admin_id.* as ChatAdmin FROM Chat ORDER BY created_at DESC'
+          'SELECT *, user_id.* as ChatUser FROM Chat ORDER BY created_at DESC'
         );
         const chats = res?.[0] || [];
 
@@ -215,13 +245,11 @@ export function ChatRoomManagementTable() {
         const mappedData: ChatRoom[] = chats.map((chat: any) => ({
           id: chat.id,
           user: chat.ChatUser ? chat.ChatUser.name : '',
-          admin: chat.ChatAdmin ? `${chat.ChatAdmin.firstname} ${chat.ChatAdmin.lastname}` : '',
-          // نگاشت وضعیت: اگر pending یا activated باشد => open، اگر viewed باشد => viewed، در غیر این صورت closed
           status:
             chat.status === 'pending'
               ? 'pending'
-              : chat.status === 'activated'
-              ? 'activated'
+              : chat.status === 'active'
+              ? 'active'
               : chat.status === 'viewed'
               ? 'viewed'
               : chat.status === 'closed'
@@ -238,7 +266,7 @@ export function ChatRoomManagementTable() {
       }
     }
     fetchData();
-  }, []);
+  }, [adminsList]);
 
   const table = useReactTable({
     data,
@@ -259,6 +287,7 @@ export function ChatRoomManagementTable() {
     },
   });
 
+  // اسکلت بارگذاری (loading) بدون حذف هیچ استایلی
   if (isLoading) {
     return (
       <div className="w-full">

@@ -83,3 +83,22 @@
   }
 }
 
+.clerk-auth-buttons {
+  top: 0px;
+  left: 0px;
+  padding: 14px;
+  display: flex;
+  cursor: pointer;
+  position: fixed;
+  justify-content: center;
+  border-radius: 0 0 15px 0;
+  background-color: #f5f5f5;
+}
+
+.clerk-auth-buttons > button {
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  color: rgb(95, 95, 95);
+  background: rgba(0, 0, 0, 0);
+}

@@ -1,9 +1,7 @@
 import { Surreal } from "surrealdb";
 
 // Environment variables for SurrealDB connection
-const DB_URL =
-  process.env.DB_URL ||
-  "wss://dynamic-gull-06ad1bhg19u4vfrl4pqnil6o08.aws-use1.surreal.cloud";
+const DB_URL = process.env.DB_URL || "wss://dynamic-gull-06ad1bhg19u4vfrl4pqnil6o08.aws-use1.surreal.cloud";
 const DB_USER = process.env.DB_USER || "root";
 const DB_PASS = process.env.DB_PASS || "root";
 const DB_NAME = process.env.DB_NAME || "chat";

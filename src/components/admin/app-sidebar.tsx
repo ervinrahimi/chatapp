@@ -1,26 +1,26 @@
 "use client"
 
 import type * as React from "react"
-import { LayoutDashboard, MessageSquare, Users } from "lucide-react"
 import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
-import { Sidebar, SidebarContent, SidebarFooter, SidebarRail } from "@/components/ui/sidebar"
 import { useUser } from "@clerk/nextjs"
+import { LayoutDashboard, MessageSquare, Users } from "lucide-react"
+import { Sidebar, SidebarContent, SidebarFooter, SidebarRail } from "@/components/ui/sidebar"
 
 const navMainData = [
   {
     title: "Dashboard",
-    url: "/admin/chat/dashboard",
+    url: "/admin",
     icon: LayoutDashboard,
   },
   {
     title: "Chat Room Management",
-    url: "/admin/chat/chats",
+    url: "/admin/chats",
     icon: MessageSquare,
   },
   {
     title: "User Management",
-    url: "/admin/chat/users",
+    url: "/admin/users",
     icon: Users,
   }
 ]
@@ -32,20 +32,20 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
 
   const currentUser = user
     ? {
-     
-        name: `${user.username}`, 
-        email: user.emailAddresses?.[0]?.emailAddress,
-        avatar: user.imageUrl,
-      }
+
+      name: `${user.username}`,
+      email: user.emailAddresses?.[0]?.emailAddress,
+      avatar: user.imageUrl,
+    }
     : {
-        name: "Guest User",
-        email: "guest@example.com",
-        avatar: "/avatars/guest.jpg",
-      }
+      name: "Guest User",
+      email: "guest@example.com",
+      avatar: "/avatars/guest.jpg",
+    }
 
   return (
     <Sidebar collapsible="icon" {...props}>
-     
+
       <SidebarContent>
         <NavMain items={navMainData} />
       </SidebarContent>

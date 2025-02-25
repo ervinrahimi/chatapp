@@ -1,0 +1,41 @@
+.page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-family: var(--font-geist-sans);
+}
+
+.loading {
+  font-size: 84px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.loading span {
+  color: rgb(111, 111, 111);
+  display: inline-block;
+  margin: 0 5px;
+  animation: loading01 1.4s infinite alternate;
+}
+
+.loading span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.loading span:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.loading span:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+@keyframes loading01 {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

@@ -91,3 +91,6 @@ fabric.properties
 !.vscode/*.code-snippets
 .history/
 *.vsix
+
+# clerk configuration
+/.clerk/
