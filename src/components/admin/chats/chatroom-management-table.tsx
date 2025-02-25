@@ -51,6 +51,9 @@ import sdb from '@/db/surrealdb';
 
 // کامپوننت جدید:
 import { AdminChatRoom } from './AdminChatRoom';
+import { SheetTitle, SheetHeader } from '@/components/ui/sheet'
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+
 
 interface ChatRoom {
   id: string;
@@ -190,6 +193,11 @@ const columns: ColumnDef<ChatRoom>[] = [
                 </DropdownMenuItem>
               </SheetTrigger>
               <SheetContent side="right" className="w-full sm:max-w-full">
+  <SheetHeader>
+    <VisuallyHidden>
+      <SheetTitle>Chat Room</SheetTitle>
+    </VisuallyHidden>
+  </SheetHeader>
                 {/* اینجاست که از کامپوننت جداگانه استفاده می‌کنیم */}
                 <AdminChatRoom messages={sampleMessages} />
               </SheetContent>
