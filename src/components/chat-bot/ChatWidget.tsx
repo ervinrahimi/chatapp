@@ -117,17 +117,21 @@ export function ChatWidget({ adminsList }: AdminsList) {
         // Set up live subscription for message events
         const queryId = await dbClient.live("Message")
         dbClient.subscribeLive(queryId, (action: string, result: any) => {
-          if (action === "CLOSE") return
+          if (action === "CLOSE") return;
+
+          if (String(result.chat_id) !== String(chatId)) return;
+        
           if (action === "CREATE") {
-            setMessages((prev) => [...prev, result])
+            setMessages((prev) => [...prev, result]);
           } else if (action === "UPDATE") {
             setMessages((prev) =>
               prev.map((msg) => (msg.id === result.id ? result : msg))
-            )
+            );
           } else if (action === "DELETE") {
-            setMessages((prev) => prev.filter((msg) => msg.id !== result.id))
+            setMessages((prev) => prev.filter((msg) => msg.id !== result.id));
           }
-        })
+        });
+        
       } catch (err) {
         console.error("Error setting up live messages:", err)
       }
@@ -182,9 +186,9 @@ export function ChatWidget({ adminsList }: AdminsList) {
     try {
       await dbClient.create("Message", {
         chat_id: chatId,
-        sender_id: chatUserId,
+        sender_id: chatUserId.id,
         content: message,
-        sent_at: new Date(),
+        created_at: new Date(),
       })
       setMessage("")
       setTimeout(scrollToBottom, 0)
@@ -359,7 +363,7 @@ export function ChatWidget({ adminsList }: AdminsList) {
           <ScrollArea className="h-[340px] p-4">
             <div className="space-y-4">
               {sortedMessages.map((msg) => {
-                const isUserMessage = String(msg.sender_id) === String(chatUserId)
+                const isUserMessage = String(new RecordId("ChatUser", msg.sender_id)) === String(chatUserId)
                 return (
                   <div
                     key={msg.id}

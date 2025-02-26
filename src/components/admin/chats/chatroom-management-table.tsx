@@ -1,6 +1,7 @@
-'use client' /* eslint-disable @typescript-eslint/no-explicit-any */
+'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import * as React from 'react';
+import React from 'react';
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -45,23 +46,22 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import sdb from '@/db/surrealdb';
-
-// کامپوننت جدید:
-import { AdminChatRoom } from './AdminChatRoom';
-import { SheetTitle, SheetHeader } from '@/components/ui/sheet'
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { ChatView } from './ChatView';
+import { useUser } from '@clerk/nextjs';
 
-
+// Interface for ChatRoom
 interface ChatRoom {
   id: string;
   user: string;
-  status: 'pending' | 'active' | 'viewed' | 'closed';
+  status: 'pending' | 'active' | 'viewed' | 'closed' | 'unknown';
   createdAt: string;
 }
 
+// Interface for AdminsList prop
 interface AdminsList {
   adminsList: {
     id: string;
@@ -72,165 +72,6 @@ interface AdminsList {
   }[];
 }
 
-interface Message {
-  id: string;
-  sender: 'user' | 'admin';
-  content: string;
-  timestamp: string;
-}
-
-// پیام‌های نمونه (دقیقاً همانند قبل)
-const sampleMessages: Message[] = [
-  { id: '1', sender: 'user', content: 'سلام، من یک سوال دارم', timestamp: '2024-02-21T10:00:00' },
-  {
-    id: '2',
-    sender: 'admin',
-    content: 'سلام، بفرمایید. چطور می‌توانم کمکتان کنم؟',
-    timestamp: '2024-02-21T10:05:00',
-  },
-  {
-    id: '3',
-    sender: 'user',
-    content: 'من در مورد نحوه استفاده از این پلتفرم سوال دارم',
-    timestamp: '2024-02-21T10:10:00',
-  },
-  {
-    id: '4',
-    sender: 'admin',
-    content: 'بله، حتما. چه بخشی از پلتفرم برایتان مبهم است؟',
-    timestamp: '2024-02-21T10:15:00',
-  },
-  {
-    id: '5',
-    sender: 'user',
-    content: 'من نمی‌دانم چطور می‌توانم یک پروژه جدید ایجاد کنم',
-    timestamp: '2024-02-21T10:20:00',
-  },
-];
-
-// تعریف ستون‌ها با استفاده از TanStack React Table
-const columns: ColumnDef<ChatRoom>[] = [
-  {
-    accessorKey: 'user',
-    header: 'Customer Name',
-    cell: ({ row }) => <div>{row.getValue('user')}</div>,
-  },
-  {
-    accessorKey: 'admin',
-    header: 'Admin',
-    cell: ({ row }) => <div>{row.getValue('admin')}</div>,
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ row }) => {
-      const status = row.getValue('status') as string;
-      return (
-        <div
-          className={
-            status === 'pending'
-              ? 'text-yellow-600'
-              : status === 'active'
-              ? 'text-green-600'
-              : status === 'viewed'
-              ? 'text-blue-600'
-              : status === 'closed'
-              ? 'text-red-600'
-              : 'text-gray-600'
-          }
-        >
-          {status === 'pending'
-            ? 'Pending'
-            : status === 'active'
-            ? 'Active'
-            : status === 'viewed'
-            ? 'Viewed'
-            : status === 'closed'
-            ? 'Closed'
-            : 'Unknown'}
-        </div>
-      );
-    },
-  },
-  {
-    accessorKey: 'createdAt',
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        >
-          Created At
-          <ArrowUpDown className="mr-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div>{row.getValue('createdAt')}</div>,
-  },
-  {
-    id: 'actions',
-    cell: ({ row }) => {
-      const chatRoom = row.original;
-
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => console.log('Mark as viewed:', chatRoom.id)}>
-              Mark as viewed
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <Sheet>
-              <SheetTrigger asChild>
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                  View Chatroom
-                </DropdownMenuItem>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-full sm:max-w-full">
-  <SheetHeader>
-    <VisuallyHidden>
-      <SheetTitle>Chat Room</SheetTitle>
-    </VisuallyHidden>
-  </SheetHeader>
-                {/* اینجاست که از کامپوننت جداگانه استفاده می‌کنیم */}
-                <AdminChatRoom messages={sampleMessages} />
-              </SheetContent>
-            </Sheet>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                  Close chat room
-                </DropdownMenuItem>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action will close the chat room and log all details.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => console.log('Chat room closed:', chatRoom.id)}>
-                    <X className="mr-2 h-4 w-4" /> Close chat room
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      );
-    },
-  },
-];
-
-// کامپوننت اصلی جدول مدیریت چت روم
 export function ChatRoomManagementTable({ adminsList }: AdminsList) {
   const [data, setData] = React.useState<ChatRoom[]>([]);
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -238,18 +79,129 @@ export function ChatRoomManagementTable({ adminsList }: AdminsList) {
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
   const [isLoading, setIsLoading] = React.useState(true);
+  const { admin } = useUser();
 
+  // Define table columns using TanStack React Table
+  const columns = React.useMemo<ColumnDef<ChatRoom>[]>(() => [
+    {
+      accessorKey: 'user',
+      header: 'Customer Name',
+      cell: ({ row }) => <div>{row.getValue('user')}</div>,
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => {
+        const status = row.getValue('status') as string;
+        const statusColor =
+          status === 'pending'
+            ? 'text-yellow-600'
+            : status === 'active'
+            ? 'text-green-600'
+            : status === 'viewed'
+            ? 'text-blue-600'
+            : status === 'closed'
+            ? 'text-red-600'
+            : 'text-gray-600';
+        const statusLabel =
+          status === 'pending'
+            ? 'Pending'
+            : status === 'active'
+            ? 'Active'
+            : status === 'viewed'
+            ? 'Viewed'
+            : status === 'closed'
+            ? 'Closed'
+            : 'Unknown';
+        return <div className={statusColor}>{statusLabel}</div>;
+      },
+    },
+    {
+      accessorKey: 'createdAt',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Created At <ArrowUpDown className="mr-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => <div>{row.getValue('createdAt')}</div>,
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => {
+        const chatRoom = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => console.log('Mark as viewed:', chatRoom.id)}>
+                Mark as viewed
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <Sheet>
+                <SheetTrigger asChild>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    View Chatroom
+                  </DropdownMenuItem>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-full sm:max-w-full">
+                  <SheetHeader>
+                    <VisuallyHidden>
+                      <SheetTitle>Chat Room</SheetTitle>
+                    </VisuallyHidden>
+                  </SheetHeader>
+                  {/* Render ChatView component with chatId and adminId */}
+                  <ChatView chatId={chatRoom.id} adminId={admin?.id} />
+                </SheetContent>
+              </Sheet>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    Close chat room
+                  </DropdownMenuItem>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action will close the chat room and log all details.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => console.log('Chat room closed:', chatRoom.id)}>
+                      <X className="mr-2 h-4 w-4" /> Close chat room
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ], [admin]);
+
+  // Fetch chat rooms data from SurrealDB on component mount
   React.useEffect(() => {
     async function fetchData() {
       try {
         const db = await sdb();
-        // Query برای دریافت اطلاعات Chat به همراه اطلاعات مشتری
+        // Query to get chat data along with user details
         const res = await db.query(
           'SELECT *, user_id.* as ChatUser FROM Chat ORDER BY created_at DESC'
         );
         const chats = res?.[0] || [];
 
-        // نگاشت داده‌ها به ساختار ChatRoom
+        // Map the fetched data to the ChatRoom structure
         const mappedData: ChatRoom[] = chats.map((chat: any) => ({
           id: chat.id,
           user: chat.ChatUser ? chat.ChatUser.name : '',
@@ -276,6 +228,7 @@ export function ChatRoomManagementTable({ adminsList }: AdminsList) {
     fetchData();
   }, [adminsList]);
 
+  // Initialize the React Table instance
   const table = useReactTable({
     data,
     columns,
@@ -295,48 +248,23 @@ export function ChatRoomManagementTable({ adminsList }: AdminsList) {
     },
   });
 
-  // اسکلت بارگذاری (loading) بدون حذف هیچ استایلی
+  // Display a simplified loading state
   if (isLoading) {
     return (
       <div className="w-full">
-        <div className="flex items-center py-4">
+        <div className="py-4">
           <Skeleton className="h-10 w-[250px]" />
-          <Skeleton className="ml-auto h-10 w-[100px]" />
         </div>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              {Array.from({ length: 5 }).map((_, index) => (
-                <TableRow key={index}>
-                  {Array.from({ length: 6 }).map((_, cellIndex) => (
-                    <TableHead key={cellIndex}>
-                      <Skeleton className="h-6 w-full" />
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {Array.from({ length: 5 }).map((_, index) => (
-                <TableRow key={index}>
-                  {Array.from({ length: 6 }).map((_, cellIndex) => (
-                    <TableCell key={cellIndex}>
-                      <Skeleton className="h-6 w-full" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <Skeleton className="h-40 w-full" />
       </div>
     );
   }
 
+  // Render the chat room management table
   return (
     <div className="w-full">
       <div className="flex items-center py-4">
-        {/* قسمت سرچ: فیلتر بر اساس ستون user */}
+        {/* Search filter for user column */}
         <Input
           placeholder="Filter by user..."
           value={(table.getColumn('user')?.getFilterValue() as string) ?? ''}
