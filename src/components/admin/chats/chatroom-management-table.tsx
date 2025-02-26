@@ -51,7 +51,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import sdb from '@/db/surrealdb';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { ChatView } from './ChatView';
-import { useUser } from '@clerk/nextjs';
 
 // Interface for ChatRoom
 interface ChatRoom {
@@ -62,7 +61,7 @@ interface ChatRoom {
 }
 
 // Interface for AdminsList prop
-interface AdminsList {
+interface Requirement {
   adminsList: {
     id: string;
     imageUrl: string;
@@ -70,16 +69,16 @@ interface AdminsList {
     lastName: string;
     emailAddresses: string[];
   }[];
+  adminId: string;
 }
 
-export function ChatRoomManagementTable({ adminsList }: AdminsList) {
+export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
   const [data, setData] = React.useState<ChatRoom[]>([]);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
   const [isLoading, setIsLoading] = React.useState(true);
-  const { admin } = useUser();
 
   // Define table columns using TanStack React Table
   const columns = React.useMemo<ColumnDef<ChatRoom>[]>(() => [
@@ -159,7 +158,7 @@ export function ChatRoomManagementTable({ adminsList }: AdminsList) {
                     </VisuallyHidden>
                   </SheetHeader>
                   {/* Render ChatView component with chatId and adminId */}
-                  <ChatView chatId={chatRoom.id} adminId={admin?.id} />
+                  <ChatView chatId={chatRoom.id} adminId={adminId} adminsList={adminsList} />
                 </SheetContent>
               </Sheet>
               <AlertDialog>
@@ -188,7 +187,7 @@ export function ChatRoomManagementTable({ adminsList }: AdminsList) {
         );
       },
     },
-  ], [admin]);
+  ], []);
 
   // Fetch chat rooms data from SurrealDB on component mount
   React.useEffect(() => {

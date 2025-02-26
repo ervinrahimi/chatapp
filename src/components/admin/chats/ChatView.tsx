@@ -24,9 +24,16 @@ interface Message {
 interface Requirement {
   chatId: string;
   adminId: string;
+  adminsList: {
+    id: string;
+    imageUrl: string;
+    firstName: string;
+    lastName: string;
+    emailAddresses: string[];
+  }[];
 }
 
-export function ChatView({ chatId, adminId }: Requirement) {
+export function ChatView({ chatId, adminId, adminsList }: Requirement) {
   // State for database connection and authentication
   const [dbClient, setDbClient] = useState<any>(null);
   const [isAuthDone, setIsAuthDone] = useState(false);
@@ -104,17 +111,25 @@ export function ChatView({ chatId, adminId }: Requirement) {
     if (!inputValue.trim()) return;
 
     try {
+      // ایجاد پیام جدید در جدول Message
       await dbClient.create('Message', {
-        chat_id: chatId,       // Use chatId directly (without quotes in QL)
-        sender_id: adminId,   // Fixed sender_id set to 'admin'
+        chat_id: chatId,
+        sender_id: adminId,
         content: inputValue,
-        created_at: new Date(), // Use Date object directly
+        created_at: new Date(),
       });
+
+      // به‌روزرسانی وضعیت چت از pending به active
+      // شرط admin_id هم اضافه شده تا فقط چت مربوط به ادمین جاری تغییر وضعیت بده
+      await dbClient.query(
+        `UPDATE Chat SET status = 'active', admin_id = '${adminId}' WHERE id = ${chatId} AND status = 'pending'`
+      );
       setInputValue('');
     } catch (err) {
       console.error('Error sending message:', err);
     }
   };
+
 
   // Render loading state if not connected yet
   if (!isAuthDone) {
@@ -141,43 +156,51 @@ export function ChatView({ chatId, adminId }: Requirement) {
             <ScrollArea className="flex-grow overflow-auto">
               <div className="space-y-4 p-4">
                 {messages.length > 0 ? (
-                  messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.sender_id?.slice(0, 5) === adminId?.slice(0, 5) ? 'justify-end' : 'justify-start'
-                      }`}
-                    >
+                  messages.map((message) => {
+                    // بررسی می‌کنیم که آیا شناسه فرستنده در لیست ادمین‌ها موجود است
+                    const isAdmin = adminsList.some(admin => admin.id === message.sender_id);
+                    // در صورت وجود، اطلاعات ادمین مربوطه را دریافت می‌کنیم
+                    const adminDetails = adminsList.find(admin => admin.id === message.sender_id);
+                    return (
                       <div
-                        className={`flex items-start max-w-[70%] ${
-                          message.sender_id?.slice(0, 5) === adminId?.slice(0, 5) ? 'flex-row-reverse' : 'flex-row'
-                        }`}
+                        key={message.id}
+                        className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}
                       >
-                        <Avatar className="w-8 h-8">
-                          <AvatarImage
-                            src={message.sender_id?.slice(0, 5) === adminId?.slice(0, 5) ? '/admin-avatar.png' : '/user-avatar.png'}
-                          />
-                          <AvatarFallback>
-                            {message.sender_id?.slice(0, 5) === adminId?.slice(0, 5) ? 'A' : 'U'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className={`mx-2 ${message.sender_id?.slice(0, 5) === adminId?.slice(0, 5) ? 'text-right' : 'text-left'}`}>
-                          <div
-                            className={`rounded-lg p-2 ${
-                              message.sender_id?.slice(0, 5) === adminId?.slice(0, 5)
+                        <div
+                          className={`flex items-start max-w-[70%] ${isAdmin ? 'flex-row-reverse' : 'flex-row'
+                            }`}
+                        >
+                          <Avatar className="w-8 h-8">
+                            <AvatarImage
+                              src={
+                                isAdmin
+                                  ? (adminDetails?.imageUrl || '/admin-avatar.png')
+                                  : '/user-avatar.png'
+                              }
+                            />
+                            <AvatarFallback>
+                              {isAdmin
+                                ? (adminDetails ? adminDetails.firstName.charAt(0) : 'A')
+                                : 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className={`mx-2 ${isAdmin ? 'text-right' : 'text-left'}`}>
+                            <div
+                              className={`rounded-lg p-2 ${isAdmin
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-muted'
-                            }`}
-                          >
-                            {message.content}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {new Date(message.created_at).toLocaleString()}
+                                }`}
+                            >
+                              {message.content}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {new Date(message.created_at).toLocaleString()}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <p className="text-center text-sm text-muted-foreground">
                     No messages yet!

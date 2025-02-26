@@ -1,10 +1,12 @@
 import React from 'react';
 import { ChatRoomManagementTable } from './chatroom-management-table';
 import { clerkClient } from '@clerk/nextjs/server';
+import { currentUser } from '@clerk/nextjs/server';
 
 export default async function ChatroomManagment() {
   // Retrieve the list of users from Clerk.
   const users = await(await clerkClient()).users.getUserList();
+  const adminId = (await currentUser())?.id;
 
   // Filter users to include only those with the role 'admin'.
   const admins = users.data.filter((user) => user.publicMetadata?.role === 'admin');
@@ -18,5 +20,7 @@ export default async function ChatroomManagment() {
     emailAddresses: admin.emailAddresses.map((email) => email.emailAddress),
   }));
 
-  return <ChatRoomManagementTable adminsList={adminsList} />;
+  if (!adminId) return <div>Error: Admin not found</div>;
+
+  return <ChatRoomManagementTable adminsList={adminsList} adminId={adminId} />;
 }

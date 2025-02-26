@@ -225,7 +225,7 @@ export function ChatWidget({ adminsList }: AdminsList) {
         // Create a new chat record with the user_id field
         const chat = await dbClient.create("Chat", {
           user_id: userId,
-          status: "viewed",
+          status: "pending",
           started_at: new Date(),
           ended_at: new Date(),
           created_at: new Date(),
