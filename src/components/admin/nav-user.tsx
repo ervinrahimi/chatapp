@@ -1,15 +1,8 @@
-"use client";
+'use client';
 
-import {
-  BadgeCheck,
-  Bell,
-  ChevronsUpDown,
-  CreditCard,
-  LogOut,
-  Sparkles,
-} from "lucide-react";
+import { BadgeCheck, ChevronsUpDown, LogOut, Sparkles } from 'lucide-react';
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,14 +11,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar";
-import { useClerk } from "@clerk/nextjs";
+} from '@/components/ui/sidebar';
+import { useClerk } from '@clerk/nextjs';
 
 export function NavUser({
   user,
@@ -61,7 +54,7 @@ export function NavUser({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-            side={isMobile ? "bottom" : "right"}
+            side={isMobile ? 'bottom' : 'right'}
             align="end"
             sideOffset={4}
           >
@@ -77,56 +70,37 @@ export function NavUser({
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <Sparkles />
-                Upgrade to Pro
-              </DropdownMenuItem>
+              {clerk.user ? (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      clerk?.openUserProfile();
+                    }}
+                  >
+                    <BadgeCheck />
+                    Manage Account
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      clerk?.signOut();
+                    }}
+                  >
+                    <LogOut />
+                    Sign Out
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <DropdownMenuItem
+                  onClick={() => {
+                    clerk?.openSignIn();
+                  }}
+                >
+                  <BadgeCheck />
+                  Sign In
+                </DropdownMenuItem>
+              )}
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-  {clerk.user ? (
-    <>
-      <DropdownMenuItem
-        onClick={() => {
-          clerk?.openUserProfile();
-        }}
-      >
-        <BadgeCheck />
-        Manage Account
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        onClick={() => {
-          clerk?.signOut();
-        }}
-      >
-        <LogOut />
-        Sign Out
-      </DropdownMenuItem>
-    </>
-  ) : (
-    <DropdownMenuItem
-      onClick={() => {
-        clerk?.openSignIn();
-      }}
-    >
-      <BadgeCheck />
-      Sign In
-    </DropdownMenuItem>
-  )}
-</DropdownMenuGroup>
-
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <CreditCard />
-              Billing
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Bell />
-              Notifications
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
