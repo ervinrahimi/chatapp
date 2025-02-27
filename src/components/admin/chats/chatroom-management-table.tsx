@@ -51,26 +51,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import sdb from '@/db/surrealdb';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { ChatView } from './ChatView';
-
+import { type ChatRoom,Requirement } from '@/types/chat';
 // Interface for ChatRoom
-interface ChatRoom {
-  id: string;
-  user: string;
-  status: 'pending' | 'active' | 'viewed' | 'closed' | 'unknown';
-  createdAt: string;
-}
 
-// Interface for AdminsList prop
-interface Requirement {
-  adminsList: {
-    id: string;
-    imageUrl: string;
-    firstName: string;
-    lastName: string;
-    emailAddresses: string[];
-  }[];
-  adminId: string;
-}
 
 export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
   const [data, setData] = React.useState<ChatRoom[]>([]);
@@ -141,8 +124,43 @@ export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => console.log('Mark as viewed:', chatRoom.id)}>
-                Mark as viewed
+              <DropdownMenuItem 
+                onClick={async () => {
+                  try {
+                    const db = await sdb();
+                    // Update the Chat record: change status from active to closed
+                    await db.query(`UPDATE Chat SET status = "closed" WHERE id =${chatRoom.id}`);
+                   
+                    // Update local state: set status to 'closed' for the updated chat
+                    setData(prevData =>
+                      prevData.map(chat =>
+                        chat.id === chatRoom.id ? { ...chat, status: 'closed' } : chat
+                      )
+                    );
+                  } catch (error) {
+                    console.error('Error updating chat room status:', error);
+                  }
+                }}>
+                Chatroom Closed
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={async () => {
+                  try {
+                    const db = await sdb();
+                    // Update the Chat record: change status from active to closed
+                    await db.query(`UPDATE Chat SET status = "viewed" WHERE id =${chatRoom.id}`);
+                   
+                    // Update local state: set status to 'closed' for the updated chat
+                    setData(prevData =>
+                      prevData.map(chat =>
+                        chat.id === chatRoom.id ? { ...chat, status: 'viewed' } : chat
+                      )
+                    );
+                  } catch (error) {
+                    console.error('Error updating chat room status:', error);
+                  }
+                }}>
+               Mark as viewed
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <Sheet>
