@@ -1,8 +1,8 @@
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/admin/app-sidebar';
-import { Separator } from '@/components/ui/separator';
-import type { Metadata } from 'next';
 import DynamicBreadcrumb from '@/components/admin/DynamicBreadcrumb';
+import { Separator } from '@/components/ui/separator';
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'Admin Dashboard',

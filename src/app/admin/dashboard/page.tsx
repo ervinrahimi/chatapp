@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { DatePickerForm } from "@/components/admin/dashboard/Calendar";
-import * as React from "react";
-import TabsSection from "@/components/admin/dashboard/tabsSection";
+import { DatePickerForm } from '@/components/admin/dashboard/Calendar';
+import * as React from 'react';
+import TabsSection from '@/components/admin/dashboard/tabsSection';
 
 export default function DashboardPage() {
   return (

@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react";
 import { DatePickerForm } from "@/components/admin/dashboard/Calendar";
 import TabsSection from "@/components/admin/dashboard/tabsSection";
 

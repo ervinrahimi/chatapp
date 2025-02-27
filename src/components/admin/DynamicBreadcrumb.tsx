@@ -1,12 +1,12 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
 import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
 } from '@/components/ui/breadcrumb';
+import { usePathname } from 'next/navigation';
 
 const customLabels: Record<string, string> = {
   admin: 'Dashboard',

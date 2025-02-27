@@ -1,4 +1,4 @@
-import { UserManagementTable } from "@/components/admin/users/users-table"
+import { UserManagementTable } from '@/components/admin/users/users-table';
 
 export default function UserManagementPage() {
   return (
@@ -6,6 +6,5 @@ export default function UserManagementPage() {
       <h1 className="text-2xl font-bold my-5">User Management</h1>
       <UserManagementTable />
     </div>
-  )
+  );
 }
-
