@@ -12,7 +12,7 @@ const customLabels: Record<string, string> = {
   admin: 'Dashboard',
   chats: 'Chat Room Management',
   users: 'User Management',
-  // در صورت نیاز می‌توانید مپینگ‌های بیشتری اضافه کنید.
+  // If needed, you can add more mappings.
 };
 
 export default function DynamicBreadcrumb() {

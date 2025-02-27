@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import * as React from 'react';
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -15,7 +14,19 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { ArrowUpDown, ChevronDown, MoreHorizontal } from 'lucide-react';
+import * as React from 'react';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -28,25 +39,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -55,6 +47,14 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 // Connect to the database using the sdb function (settings in page.tsx)
 import sdb from '@/db/surrealdb';
@@ -101,10 +101,10 @@ export function UserManagementTable() {
   const fetchCustomers = React.useCallback(async () => {
     if (!isAuthDone || !dbClient) return;
     try {
-      const response = await dbClient.query(
+      const response = (await dbClient.query(
         'SELECT id,name,email,clerk_id,created_at FROM ChatUser;',
         {}
-      ) as [Customer[]];
+      )) as [Customer[]];
       setCustomers(response[0]);
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -112,25 +112,26 @@ export function UserManagementTable() {
       setIsLoading(false);
     }
   }, [isAuthDone, dbClient]);
-  
+
   React.useEffect(() => {
     if (isAuthDone && dbClient) {
       fetchCustomers();
     }
-  }, [isAuthDone, dbClient, fetchCustomers]); 
-  
-  
+  }, [isAuthDone, dbClient, fetchCustomers]);
 
   // Edit customer operation
   async function handleEditCustomer(customer: Customer) {
     if (!isAuthDone || !dbClient) return;
-    const newName = (document.getElementById(`name-${customer.id}`) as HTMLInputElement)?.value || customer.name;
-    const newEmail = (document.getElementById(`email-${customer.id}`) as HTMLInputElement)?.value || customer.email;
+    const newName =
+      (document.getElementById(`name-${customer.id}`) as HTMLInputElement)?.value || customer.name;
+    const newEmail =
+      (document.getElementById(`email-${customer.id}`) as HTMLInputElement)?.value ||
+      customer.email;
     try {
-      await dbClient.query(
-        `UPDATE ${customer.id} SET name = $newName, email = $newEmail;`,
-        { newName, newEmail }
-      );
+      await dbClient.query(`UPDATE ${customer.id} SET name = $newName, email = $newEmail;`, {
+        newName,
+        newEmail,
+      });
       console.log('Customer updated:', customer.id);
       fetchCustomers();
     } catch (error) {
@@ -142,10 +143,7 @@ export function UserManagementTable() {
   async function handleDeleteCustomer(customer: Customer) {
     if (!isAuthDone || !dbClient) return;
     try {
-      await dbClient.query(
-        `DELETE ${customer.id};`,
-        {}
-      );
+      await dbClient.query(`DELETE ${customer.id};`, {});
       console.log('Customer deleted:', customer.id);
       fetchCustomers();
     } catch (error) {
@@ -264,7 +262,8 @@ export function UserManagementTable() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete the customer and remove their data.
+                      This action cannot be undone. This will permanently delete the customer and
+                      remove their data.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

@@ -1,12 +1,12 @@
 'use client';
 
+import { Sidebar, SidebarContent, SidebarFooter, SidebarRail } from '@/components/ui/sidebar';
+import { useUser } from '@clerk/nextjs';
+import { LayoutDashboard, MessageSquare, Users } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import type * as React from 'react';
 import { NavMain } from './nav-main';
 import { NavUser } from './nav-user';
-import { useUser } from '@clerk/nextjs';
-import { LayoutDashboard, MessageSquare, Users } from 'lucide-react';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarRail } from '@/components/ui/sidebar';
-import { usePathname } from 'next/navigation';
 
 const navMainData = [
   {

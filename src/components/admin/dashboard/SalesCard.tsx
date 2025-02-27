@@ -1,14 +1,14 @@
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Sample data for recent sales
 const recentSales = [
-  { name: "Olivia Martin", email: "olivia.martin@email.com", amount: "+$1,999.00" },
-  { name: "Jackson Lee", email: "jackson.lee@email.com", amount: "+$39.00" },
-  { name: "Isabella Nguyen", email: "isabella.nguyen@email.com", amount: "+$299.00" },
-  { name: "William Kim", email: "will@email.com", amount: "+$99.00" },
-  { name: "Sofia Davis", email: "sofia.davis@email.com", amount: "+$39.00" },
-]
+  { name: 'Olivia Martin', email: 'olivia.martin@email.com', amount: '+$1,999.00' },
+  { name: 'Jackson Lee', email: 'jackson.lee@email.com', amount: '+$39.00' },
+  { name: 'Isabella Nguyen', email: 'isabella.nguyen@email.com', amount: '+$299.00' },
+  { name: 'William Kim', email: 'will@email.com', amount: '+$99.00' },
+  { name: 'Sofia Davis', email: 'sofia.davis@email.com', amount: '+$39.00' },
+];
 
 // SalesCard component to display recent sales
 const SalesCard = () => {
@@ -26,7 +26,10 @@ const SalesCard = () => {
                 <Avatar className="h-9 w-9">
                   <AvatarFallback>
                     {/* Display initials of the name */}
-                    {sale.name.split(" ").map((n) => n[0]).join("")}
+                    {sale.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')}
                   </AvatarFallback>
                 </Avatar>
                 <div className="ml-4 space-y-1">
@@ -40,7 +43,7 @@ const SalesCard = () => {
         </ScrollArea>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default SalesCard
+export default SalesCard;
