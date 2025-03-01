@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-'use client';
+"use client";
 
 import {
   type ColumnDef,
@@ -12,9 +12,9 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
-} from '@tanstack/react-table';
-import { ArrowUpDown, ChevronDown, MoreHorizontal } from 'lucide-react';
-import * as React from 'react';
+} from "@tanstack/react-table";
+import { ArrowUpDown, ChevronDown, MoreHorizontal } from "lucide-react";
+import * as React from "react";
 
 import {
   AlertDialog,
@@ -26,8 +26,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -36,8 +36,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -45,8 +45,8 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from '@/components/ui/sheet';
-import { Skeleton } from '@/components/ui/skeleton';
+} from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -54,16 +54,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 
 // Connect to the database using the sdb function (settings in page.tsx)
-import sdb from '@/db/surrealdb';
+import sdb from "@/db/surrealdb";
+import { Uuid } from "surrealdb";
 
 interface Customer {
   id: string;
   name: string;
   email: string;
-  clerk_user_id: string;
   created_at: string;
 }
 
@@ -78,8 +78,11 @@ export function UserManagementTable() {
 
   // State for table settings
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  );
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
   // Connect to SurrealDB and perform Auth
@@ -90,7 +93,7 @@ export function UserManagementTable() {
         setDbClient(db);
         setIsAuthDone(true);
       } catch (err) {
-        console.error('Error connecting to SurrealDB:', err);
+        console.error("Error connecting to SurrealDB:", err);
       }
     };
 
@@ -98,94 +101,153 @@ export function UserManagementTable() {
   }, []);
 
   // Fetch customers from the database using the .query method
-  const fetchCustomers = React.useCallback(async () => {
-    if (!isAuthDone || !dbClient) return;
-    try {
-      const response = (await dbClient.query(
-        'SELECT id,name,email,clerk_id,created_at FROM ChatUser;',
-        {}
-      )) as [Customer[]];
-      setCustomers(response[0]);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-    } finally {
-      setIsLoading(false);
+  React.useEffect(() => {
+    let queryId: Uuid | null = null;
+    async function fetchCustomersAndSubscribe() {
+      if (!isAuthDone || !dbClient) return;
+      try {
+        // Fetch initial customers from SurrealDB
+        const response = (await dbClient.query(
+          "SELECT id,name,email,created_at FROM ChatUser ORDER BY created_at DESC",
+          {}
+        )) as [Customer[]];
+        setCustomers(response[0]);
+        setIsLoading(false);
+
+        // Set up live subscription for ChatUser table changes
+        queryId = await dbClient.live("ChatUser");
+        dbClient.subscribeLive(queryId, (action: string, result: any) => {
+          if (action === "CLOSE") return;
+          if (action === "CREATE") {
+            const newCustomer: Customer = {
+              id: result.id,
+              name: result.name,
+              email: result.email,
+              created_at: result.created_at,
+            };
+            setCustomers((prev) => [newCustomer, ...prev]);
+          } else if (action === "UPDATE") {
+            setCustomers((prev) =>
+              prev.map((customer) =>
+                customer.id === result.id
+                  ? { ...customer, name: result.name, email: result.email }
+                  : customer
+              )
+            );
+          } else if (action === "DELETE") {
+            setCustomers((prev) =>
+              prev.filter((customer) => customer.id !== result.id)
+            );
+          }
+        });
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+      }
     }
+    fetchCustomersAndSubscribe();
+
+    // Cleanup live subscription on component unmount
+    return () => {
+      if (queryId) {
+        sdb().then((db) => {
+          if (queryId) {
+            db.kill(queryId).catch((err) =>
+              console.error("Error killing live query:", err)
+            );
+          }
+        });
+      }
+    };
   }, [isAuthDone, dbClient]);
 
-  React.useEffect(() => {
-    if (isAuthDone && dbClient) {
-      fetchCustomers();
-    }
-  }, [isAuthDone, dbClient, fetchCustomers]);
-
   // Edit customer operation
-  async function handleEditCustomer(customer: Customer) {
-    if (!isAuthDone || !dbClient) return;
-    const newName =
-      (document.getElementById(`name-${customer.id}`) as HTMLInputElement)?.value || customer.name;
-    const newEmail =
-      (document.getElementById(`email-${customer.id}`) as HTMLInputElement)?.value ||
-      customer.email;
-    try {
-      await dbClient.query(`UPDATE ${customer.id} SET name = $newName, email = $newEmail;`, {
-        newName,
-        newEmail,
-      });
-      console.log('Customer updated:', customer.id);
-      fetchCustomers();
-    } catch (error) {
-      console.error('Error updating customer:', error);
-    }
-  }
+  const handleEditCustomer = React.useCallback(
+    async (customer: Customer) => {
+      if (!isAuthDone || !dbClient) return;
+      const newName =
+        (document.getElementById(`name-${customer.id}`) as HTMLInputElement)
+          ?.value || customer.name;
+      const newEmail =
+        (document.getElementById(`email-${customer.id}`) as HTMLInputElement)
+          ?.value || customer.email;
+      try {
+        await dbClient.query(
+          `UPDATE ${customer.id} SET name = "${newName}", email = "${newEmail}";`
+        );
+        setCustomers((prev) =>
+          prev.map((c) =>
+            c.id === customer.id ? { ...c, name: newName, email: newEmail } : c
+          )
+        );
+        console.log("Customer updated:", customer.id);
+      } catch (error) {
+        console.error("Error updating customer:", error);
+      }
+    },
+    [isAuthDone, dbClient]
+  );
 
   // Delete customer operation
-  async function handleDeleteCustomer(customer: Customer) {
-    if (!isAuthDone || !dbClient) return;
-    try {
-      await dbClient.query(`DELETE ${customer.id};`, {});
-      console.log('Customer deleted:', customer.id);
-      fetchCustomers();
-    } catch (error) {
-      console.error('Error deleting customer:', error);
-    }
-  }
+  const handleDeleteCustomer = React.useCallback(
+    async (customer: Customer) => {
+      if (!isAuthDone || !dbClient) return;
+      try {
+        await dbClient.query(`DELETE ${customer.id};`, {});
+        setCustomers((prev) => prev.filter((c) => c.id !== customer.id));
+        console.log("Customer deleted:", customer.id);
+      } catch (error) {
+        console.error("Error deleting customer:", error);
+      }
+    },
+    [isAuthDone, dbClient]
+  );
 
   // Define table columns according to the Customer structure
   const columns: ColumnDef<Customer>[] = [
     {
-      accessorKey: 'name',
-      header: 'Name',
-      cell: ({ row }) => <div>{row.getValue('name')}</div>,
-    },
-    {
-      accessorKey: 'email',
+      accessorKey: "name",
       header: ({ column }) => (
         <Button
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Name
+          <ArrowUpDown className="mr-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => <div>{row.getValue("name")}</div>,
+    },
+    {
+      accessorKey: "email",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
           Email
           <ArrowUpDown className="mr-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => <div>{row.getValue('email')}</div>,
+      cell: ({ row }) => <div>{row.getValue("email")}</div>,
     },
     {
-      accessorKey: 'clerk_id',
-      header: 'Clerk User ID',
-      cell: ({ row }) => <div>{row.getValue('clerk_id')}</div>,
-    },
-    {
-      accessorKey: 'created_at',
-      header: 'Created At',
+      accessorKey: "created_at",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Created At
+          <ArrowUpDown className="mr-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => {
-        const date = new Date(row.getValue('created_at'));
+        const date = new Date(row.getValue("created_at"));
         return <div>{date.toLocaleString()}</div>;
       },
     },
     {
-      id: 'actions',
+      id: "actions",
       cell: ({ row }) => {
         const customer = row.original;
         return (
@@ -198,7 +260,9 @@ export function UserManagementTable() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => navigator.clipboard.writeText(customer.id)}>
+              <DropdownMenuItem
+                onClick={() => navigator.clipboard.writeText(customer.id)}
+              >
                 Copy customer ID
               </DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -213,7 +277,8 @@ export function UserManagementTable() {
                   <SheetHeader>
                     <SheetTitle>Edit Customer</SheetTitle>
                     <SheetDescription>
-                      Make changes to the customer here. Click save when youre done.
+                      Make changes to the customer here. Click save when youre
+                      done.
                     </SheetDescription>
                   </SheetHeader>
                   <div className="py-4">
@@ -243,7 +308,9 @@ export function UserManagementTable() {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleEditCustomer(customer)}>
+                        <AlertDialogAction
+                          onClick={() => handleEditCustomer(customer)}
+                        >
                           Confirm
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -260,15 +327,19 @@ export function UserManagementTable() {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogTitle>
+                      Are you absolutely sure?
+                    </AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete the customer and
-                      remove their data.
+                      This action cannot be undone. This will permanently delete
+                      the customer and remove their data.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleDeleteCustomer(customer)}>
+                    <AlertDialogAction
+                      onClick={() => handleDeleteCustomer(customer)}
+                    >
                       Delete
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -343,8 +414,10 @@ export function UserManagementTable() {
       <div className="flex items-center py-4">
         <Input
           placeholder="Filter emails..."
-          value={(table.getColumn('email')?.getFilterValue() as string) ?? ''}
-          onChange={(event) => table.getColumn('email')?.setFilterValue(event.target.value)}
+          value={(table.getColumn("email")?.getFilterValue() as string) ?? ""}
+          onChange={(event) =>
+            table.getColumn("email")?.setFilterValue(event.target.value)
+          }
           className="max-w-sm"
         />
         <DropdownMenu>
@@ -379,7 +452,10 @@ export function UserManagementTable() {
                   <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -388,17 +464,26 @@ export function UserManagementTable() {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   No results.
                 </TableCell>
               </TableRow>
@@ -408,7 +493,7 @@ export function UserManagementTable() {
       </div>
       <div className="flex items-center justify-end space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of{' '}
+          {table.getFilteredSelectedRowModel().rows.length} of{" "}
           {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
         <div className="space-x-2">
