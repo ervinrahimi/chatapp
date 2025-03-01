@@ -114,10 +114,9 @@ export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
                 const userRes: any[] = await dbInner.query(
                   `SELECT name FROM ChatUser WHERE id = ${result.user_id}`
                 );
-                console.log(userRes);
                 const newChat: ChatRoom = {
                   id: result.id,
-                  user: userRes?.[0]?.name || "",
+                  user: userRes?.[0]?.[0]?.name || "",
                   status: mapStatus(result.status),
                   createdAt: result.created_at
                     ? new Date(result.created_at).toLocaleString()
