@@ -1,7 +1,8 @@
 'use client'
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import React from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -15,8 +16,6 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { ArrowUpDown, ChevronDown, MoreHorizontal, X } from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -59,29 +58,105 @@ import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { ChatView } from './ChatView';
 import { type ChatRoom, Requirement } from '@/types/chat';
 
-/**
- * Custom hook for fetching and managing chat rooms from SurrealDB
- */
-function useChatRooms(adminsList: string[]) {
-  const [data, setData] = React.useState<ChatRoom[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
+  // State for chat rooms data and loading status
+  const [data, setData] = useState<ChatRoom[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  /**
-   * Helper function to update chat status in the database and local state
-   */
-  const updateChatStatus = React.useCallback(
-    async (chatId: string, newStatus: 'closed' | 'viewed') => {
+  // States for table configurations
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = useState({});
+
+  // Helper function to map status to allowed values
+  const mapStatus = (status: string): ChatRoom['status'] => {
+    if (status === 'pending') return 'pending';
+    if (status === 'active') return 'active';
+    if (status === 'viewed') return 'viewed';
+    if (status === 'closed') return 'closed';
+    return 'unknown';
+  };
+
+  // Combined useEffect: fetch initial chats and set up live subscription
+  useEffect(() => {
+    let queryId: string | null = null;
+    async function loadChatsAndSubscribe() {
       try {
         const db = await sdb();
-        // Update the chat record in the database
-        await db.query(`UPDATE Chat SET status = "${newStatus}" WHERE id = ${chatId}`);
-
-        // Update local state
-        setData((prevData) =>
-          prevData.map((chat) =>
-            chat.id === chatId ? { ...chat, status: newStatus } : chat
-          )
+        // Fetch initial chats from SurrealDB
+        const res = await db.query(
+          'SELECT *, user_id.* as ChatUser FROM Chat ORDER BY created_at DESC'
         );
+        const chats = res?.[0] || [];
+        const mappedData: ChatRoom[] = chats.map((chat: any) => ({
+          id: chat.id,
+          user: chat.ChatUser ? chat.ChatUser.name : '',
+          status: mapStatus(chat.status),
+          createdAt: chat.created_at ? new Date(chat.created_at).toLocaleString() : '',
+        }));
+        setData(mappedData);
+        setIsLoading(false);
+
+        // Set up live subscription for Chat table changes
+        queryId = await db.live('Chat');
+        db.subscribeLive(queryId, (action: string, result: any) => {
+          if (action === 'CLOSE') return;
+          if (action === 'CREATE') {
+            // For CREATE action, fetch the user data via a query since result.ChatUser is not available
+            (async () => {
+              try {
+                const dbInner = await sdb();
+                // Query the user table to get the user's name using result.user_id
+                const userRes = await dbInner.query(`SELECT name FROM ChatUser WHERE id = ${result.user_id}`);
+                console.log(userRes)
+                const newChat: ChatRoom = {
+                  id: result.id,
+                  user: userRes?.[0]?.[0]?.name || '',
+                  status: mapStatus(result.status),
+                  createdAt: result.created_at ? new Date(result.created_at).toLocaleString() : '',
+                };
+                setData(prev => [newChat, ...prev]);
+              } catch (error) {
+                console.error('Error fetching user for new chat:', error);
+              }
+            })();
+          } else if (action === 'UPDATE') {
+            console.log(result)
+            const newStatus = mapStatus(result.status);
+            setData(prev =>
+              prev.map(chat =>
+                chat.id.id === result.id.id ? { ...chat, status: newStatus } : chat
+              )
+            );
+          } else if (action === 'DELETE') {
+            setData(prev =>
+              prev.filter(chat => chat.id.id !== result.id.id)
+            );
+          }
+        });
+      } catch (error) {
+        console.error('Error in loadChatsAndSubscribe:', error);
+      }
+    }
+    loadChatsAndSubscribe();
+
+    // Cleanup live subscription on component unmount
+    return () => {
+      if (queryId) {
+        sdb().then(db => {
+          db.kill(queryId).catch(err => console.error('Error killing live query:', err));
+        });
+      }
+    };
+  }, [adminsList]);
+
+  // Manual chat status update function (e.g. via action menu)
+  const updateChatStatus = useCallback(
+    async (chatId: any, newStatus: 'closed' | 'viewed') => {
+      try {
+        const db = await sdb();
+        await db.query(`UPDATE Chat SET status = "${newStatus}" WHERE id = ${chatId}`);
       } catch (error) {
         console.error('Error updating chat room status:', error);
       }
@@ -89,64 +164,8 @@ function useChatRooms(adminsList: string[]) {
     []
   );
 
-  /**
-   * Fetch chat data and user details from SurrealDB
-   */
-  React.useEffect(() => {
-    async function fetchData() {
-      try {
-        const db = await sdb();
-        // Query to get chat data plus user details
-        const res = await db.query(
-          'SELECT *, user_id.* as ChatUser FROM Chat ORDER BY created_at DESC'
-        );
-        const chats = res?.[0] || [];
-
-        // Map the fetched data to the ChatRoom structure
-        const mappedData: ChatRoom[] = chats.map((chat: any) => ({
-          id: chat.id,
-          user: chat.ChatUser ? chat.ChatUser.name : '',
-          status:
-            chat.status === 'pending'
-              ? 'pending'
-              : chat.status === 'active'
-              ? 'active'
-              : chat.status === 'viewed'
-              ? 'viewed'
-              : chat.status === 'closed'
-              ? 'closed'
-              : 'unknown',
-          createdAt: chat.created_at
-            ? new Date(chat.created_at).toLocaleString()
-            : '',
-        }));
-
-        setData(mappedData);
-      } catch (error) {
-        console.error('Error fetching chat rooms:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchData();
-  }, [adminsList]);
-
-  return {
-    data,
-    isLoading,
-    updateChatStatus,
-  };
-}
-
-/**
- * Custom hook for building columns for the chat room table (React Table)
- */
-function useChatRoomColumns(
-  adminId: string,
-  adminsList: string[],
-  updateChatStatus: (chatId: string, newStatus: 'closed' | 'viewed') => Promise<void>
-) {
-  return React.useMemo<ColumnDef<ChatRoom>[]>(
+  // Define table columns using useMemo
+  const columns = useMemo<ColumnDef<ChatRoom>[]>(
     () => [
       {
         accessorKey: 'user',
@@ -207,24 +226,13 @@ function useChatRoomColumns(
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-
-                {/* Close chat */}
-                <DropdownMenuItem
-                  onClick={() => updateChatStatus(chatRoom.id, 'closed')}
-                >
+                <DropdownMenuItem onClick={() => updateChatStatus(chatRoom.id, 'closed')}>
                   Chatroom Closed
                 </DropdownMenuItem>
-
-                {/* Mark as viewed */}
-                <DropdownMenuItem
-                  onClick={() => updateChatStatus(chatRoom.id, 'viewed')}
-                >
+                <DropdownMenuItem onClick={() => updateChatStatus(chatRoom.id, 'viewed')}>
                   Mark as viewed
                 </DropdownMenuItem>
-
                 <DropdownMenuSeparator />
-
-                {/* View chat in Sheet */}
                 <Sheet>
                   <SheetTrigger asChild>
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
@@ -244,8 +252,6 @@ function useChatRoomColumns(
                     />
                   </SheetContent>
                 </Sheet>
-
-                {/* Alert dialog as an example for closing chat */}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
@@ -261,11 +267,7 @@ function useChatRoomColumns(
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() =>
-                          console.log('Chat room closed:', chatRoom.id)
-                        }
-                      >
+                      <AlertDialogAction onClick={() => console.log('Chat room closed:', chatRoom.id)}>
                         <X className="mr-2 h-4 w-4" /> Close chat room
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -279,34 +281,12 @@ function useChatRoomColumns(
     ],
     [adminId, adminsList, updateChatStatus]
   );
-}
 
-/**
- * Main component to render the Chat Room Management Table
- */
-export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
-  // Use custom hook to manage chat room data
-  const { data, isLoading, updateChatStatus } = useChatRooms(adminsList);
-
-  // States for sorting, filtering, column visibility, and row selection
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = React.useState({});
-
-  // Build table columns with a custom hook
-  const columns = useChatRoomColumns(adminId, adminsList, updateChatStatus);
-
-  // Create the table instance using TanStack React Table
+  // Create table instance using useReactTable
   const table = useReactTable({
     data,
     columns,
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-    },
+    state: { sorting, columnFilters, columnVisibility, rowSelection },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
@@ -317,7 +297,6 @@ export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  // Simple loading state
   if (isLoading) {
     return (
       <div className="w-full">
@@ -329,15 +308,13 @@ export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
     );
   }
 
-  // Render the table
   return (
     <div className="w-full">
       <div className="flex items-center py-4">
-        {/* Search filter for user column */}
         <Input
           placeholder="Filter by user..."
           value={(table.getColumn('user')?.getFilterValue() as string) ?? ''}
-          onChange={(event) => table.getColumn('user')?.setFilterValue(event.target.value)}
+          onChange={(e) => table.getColumn('user')?.setFilterValue(e.target.value)}
           className="max-w-sm"
         />
         <DropdownMenu>
@@ -347,36 +324,27 @@ export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => (
-                <DropdownMenuCheckboxItem
-                  key={column.id}
-                  className="capitalize"
-                  checked={column.getIsVisible()}
-                  onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                >
-                  {column.id}
-                </DropdownMenuCheckboxItem>
-              ))}
+            {table.getAllColumns().filter(col => col.getCanHide()).map(col => (
+              <DropdownMenuCheckboxItem
+                key={col.id}
+                className="capitalize"
+                checked={col.getIsVisible()}
+                onCheckedChange={(value) => col.toggleVisibility(!!value)}
+              >
+                {col.id}
+              </DropdownMenuCheckboxItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
       <div className="rounded-md border">
         <Table>
           <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
+            {table.getHeaderGroups().map(headerGroup => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
+                {headerGroup.headers.map(header => (
                   <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
               </TableRow>
@@ -384,17 +352,11 @@ export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                >
-                  {row.getVisibleCells().map((cell) => (
+              table.getRowModel().rows.map(row => (
+                <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
+                  {row.getVisibleCells().map(cell => (
                     <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -409,27 +371,15 @@ export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
           </TableBody>
         </Table>
       </div>
-
       <div className="flex items-center justify-end space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of{' '}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+          {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
         <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
+          <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
             Previous
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
+          <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
             Next
           </Button>
         </div>
