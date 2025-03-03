@@ -1,18 +1,18 @@
 'use client'; /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { MessageCircle, X, Send, Users } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import EmojiPicker from '@/components/ui/emoji';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RecordId } from 'surrealdb';
-import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import sdb from '@/db/surrealdb';
+import { cn } from '@/lib/utils';
 import Cookies from 'js-cookie';
+import { MessageCircle, Send, Users, X } from 'lucide-react';
 import * as React from 'react';
-import EmojiPicker from '@/components/ui/emoji';
+import { RecordId } from 'surrealdb';
 
 interface Message {
   id: string;
@@ -374,7 +374,6 @@ export function ChatWidget({ adminsList }: AdminsList) {
         </CardContent>
         <CardFooter className="p-3">
           <form onSubmit={handleSendMessage} className="flex w-full gap-2 relative">
-            {/* اضافه شدن کامپوننت ایموجی به صورت فراخوانی مستقیم در فرم */}
             <EmojiPicker onSelect={(emoji: string) => setMessage((prev) => prev + emoji)} />
             <Input
               placeholder="Type your message..."

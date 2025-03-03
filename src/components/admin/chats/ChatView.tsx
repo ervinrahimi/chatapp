@@ -1,17 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect, FormEvent } from 'react';
 import sdb from '@/db/surrealdb';
+import { FormEvent, useEffect, useState } from 'react';
 
 // UI Components
-import { SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Send } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import EmojiPicker from '@/components/ui/emoji';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Textarea } from '@/components/ui/textarea';
+import { Send } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -108,7 +108,7 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
     if (!inputValue.trim()) return;
 
     try {
-      // ایجاد پیام جدید در جدول Message
+      // Create a new message in the Message table
       await dbClient.create('Message', {
         chat_id: chatId,
         sender_id: adminId,
@@ -116,8 +116,8 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
         created_at: new Date(),
       });
 
-      // به‌روزرسانی وضعیت چت از pending به active
-      // شرط admin_id هم اضافه شده تا فقط چت مربوط به ادمین جاری تغییر وضعیت بده
+      // Update chat status from pending to active
+      // Added admin_id condition to change the status of the current admin's chat only
       await dbClient.query(
         `UPDATE Chat SET status = 'active', admin_id = '${adminId}' WHERE id = ${chatId} AND status = 'pending'`
       );
@@ -127,7 +127,7 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
     }
   };
 
-  // تابع دریافت ایموجی انتخاب‌شده
+  // Function to handle selected emoji
   const handleEmojiSelect = (emoji: string) => {
     setInputValue((prev) => prev + emoji);
   };
@@ -158,9 +158,9 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
               <div className="space-y-4 p-4">
                 {messages.length > 0 ? (
                   messages.map((message) => {
-                    // بررسی می‌کنیم که آیا شناسه فرستنده در لیست ادمین‌ها موجود است
+                    // Check if the sender ID is in the admin list
                     const isAdmin = adminsList.some((admin) => admin.id === message.sender_id);
-                    // در صورت وجود، اطلاعات ادمین مربوطه را دریافت می‌کنیم
+                    // If exists, get the corresponding admin details
                     const adminDetails = adminsList.find((admin) => admin.id === message.sender_id);
                     return (
                       <div
@@ -210,7 +210,7 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
               </div>
             </ScrollArea>
 
-            {/* Message input area with ایموجی – کامپوننت ایموجی بدون حذف کدهای قبلی */}
+            {/* Message input area with emoji – Emoji component without removing previous code */}
             <div className="p-4 border-t relative">
               <form onSubmit={sendMessage} className="flex items-center space-x-2">
                 <EmojiPicker onSelect={handleEmojiSelect} />

@@ -1,14 +1,14 @@
 'use client';
 
-import { FC } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { FC } from 'react';
 
 interface EmojiPickerProps {
   onSelect: (emoji: string) => void;
 }
 
-// لیست ایموجی‌ها بدون دسته‌بندی و فیلتر
+// List of emojis without categorization and filtering
 const emojis: string[] = ['😀', '😃', '😄', '🐶', '🐱', '🐭', '🍎', '🍔', '🍕'];
 
 const EmojiPicker: FC<EmojiPickerProps> = ({ onSelect }) => {
