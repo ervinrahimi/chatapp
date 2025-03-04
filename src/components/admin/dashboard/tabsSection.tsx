@@ -1,63 +1,116 @@
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import sdb from "@/db/surrealdb";
+import { useEffect, useState } from "react";
+import { Uuid } from "surrealdb";
 import ChartCard from "./ChartCard";
-import SalesCard from "./SalesCard";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent} from "@/components/ui/card";
+import AdminCard from "./adminCard";
 
 const content = {
   tabs: {
     overview: "Overview",
-    // analytics: "Analytics",
-    // reports: "Reports",
-    // notifications: "Notifications",
   },
-  cards: [
-    {
-      title: "Total Revenue",
-      description: "$45,231.89",
-      content: "+20.1% from last month",
-    },
-    {
-      title: "Subscriptions",
-      description: "+2350",
-      content: "+180.1% from last month",
-    },
-    {
-      title: "Sales",
-      description: "+12,234",
-      content: "+19% from last month",
-    },
-    {
-      title: "Active Now",
-      description: "+573",
-      content: "+201 since last hour",
-    },
-  ],
 };
 
 const TabsSection = () => {
+  const [cards, setCards] = useState([
+    { title: "Chats", description: "0" },
+    { title: "Customers", description: "0" },
+    {
+      title: "Pending Chats",
+      description: "0",
+    },
+  ]);
+
+  useEffect(() => {
+    let queryId: Uuid | null = null;
+
+    const fetchCounts = async (db: any) => {
+      const chatRes = await db.query(
+        "SELECT count() as count FROM Chat GROUP ALL"
+      );
+      const chatCount = chatRes?.[0]?.[0]?.count || 0;
+
+      const chatUserRes = await db.query(
+        "SELECT count() as count FROM ChatUser GROUP ALL"
+      );
+      const chatUserCount = chatUserRes?.[0]?.[0]?.count || 0;
+
+      const pendingRes = await db.query(
+        "SELECT count() as count FROM Chat WHERE status='pending' GROUP ALL"
+      );
+      const pendingCount = pendingRes?.[0]?.[0]?.count || 0;
+
+      setCards([
+        { title: "Chats", description: chatCount.toString() },
+        { title: "Customers", description: chatUserCount.toString() },
+        { title: "Pending Chats", description: pendingCount.toString() },
+      ]);
+    };
+
+    async function loadChatsAndSubscribe() {
+      try {
+        const db = await sdb();
+        await fetchCounts(db);
+
+        // Set up live subscription for Chat table changes
+        queryId = await db.live("Chat");
+        db.subscribeLive(queryId, async (action: string, result: any) => {
+          if (action === "CLOSE") return;
+          if (["CREATE", "DELETE", "UPDATE"].includes(action)) {
+            try {
+              const dbInner = await sdb();
+              await fetchCounts(dbInner);
+            } catch (error) {
+              console.error("Error fetching counts on live update:", error);
+            }
+          }
+        });
+      } catch (error) {
+        console.error("Error in loadChatsAndSubscribe:", error);
+      }
+    }
+    loadChatsAndSubscribe();
+
+    // Cleanup live subscription on component unmount
+    return () => {
+      if (queryId) {
+        sdb().then((db) => {
+          if (queryId) {
+            db.kill(queryId).catch((err) =>
+              console.error("Error killing live query:", err)
+            );
+          }
+        });
+      }
+    };
+  }, []);
+
   return (
     <Tabs defaultValue="overview" className="space-y-4">
       <TabsList>
         <TabsTrigger value="overview">{content.tabs.overview}</TabsTrigger>
-        {/* <TabsTrigger value="analytics">{content.tabs.analytics}</TabsTrigger>
-        <TabsTrigger value="reports">{content.tabs.reports}</TabsTrigger>
-        <TabsTrigger value="notifications">{content.tabs.notifications}</TabsTrigger> */}
       </TabsList>
       <TabsContent value="overview" className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {content.cards.map((card, index) => (
+        <div className="grid gap-4 md:grid-cols-3">
+          {cards.map((card, index) => (
             <Card key={index}>
               <CardHeader>
                 <CardTitle>{card.title}</CardTitle>
                 <CardDescription>{card.description}</CardDescription>
               </CardHeader>
-              <CardContent>{card.content}</CardContent>
             </Card>
           ))}
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           <ChartCard />
-          <SalesCard />
+          <AdminCard />
         </div>
       </TabsContent>
     </Tabs>

@@ -59,6 +59,7 @@ import {
 // Connect to the database using the sdb function (settings in page.tsx)
 import sdb from "@/db/surrealdb";
 import { Uuid } from "surrealdb";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface Customer {
   id: string;
@@ -275,6 +276,9 @@ export function UserManagementTable() {
                 </SheetTrigger>
                 <SheetContent>
                   <SheetHeader>
+                    <VisuallyHidden>
+                      <SheetTitle>Edit Customer</SheetTitle>
+                    </VisuallyHidden>
                     <SheetTitle>Edit Customer</SheetTitle>
                     <SheetDescription>
                       Make changes to the customer here. Click save when youre
