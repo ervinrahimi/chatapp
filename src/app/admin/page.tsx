@@ -1,7 +1,5 @@
-"use client"
-
 import { DatePickerForm } from "@/components/admin/dashboard/Calendar";
-import TabsSection from "@/components/admin/dashboard/tabsSection";
+import TabsSectionServer from "@/components/admin/dashboard/tabSectionServer";
 
 export default function DashboardPage() {
   return (
@@ -10,7 +8,7 @@ export default function DashboardPage() {
         <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
         <DatePickerForm />
       </div>
-      <TabsSection />
+      <TabsSectionServer />
     </div>
   );
 }

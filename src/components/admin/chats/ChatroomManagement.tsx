@@ -1,7 +1,5 @@
-import React from 'react';
+import { clerkClient, currentUser } from '@clerk/nextjs/server';
 import { ChatRoomManagementTable } from './chatroom-management-table';
-import { clerkClient } from '@clerk/nextjs/server';
-import { currentUser } from '@clerk/nextjs/server';
 
 export default async function ChatroomManagment() {
   // Retrieve the list of users from Clerk.
