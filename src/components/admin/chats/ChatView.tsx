@@ -1,18 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { useState, useEffect, FormEvent } from 'react';
 import sdb from '@/db/surrealdb';
+import { FormEvent, useEffect, useState } from 'react';
 
 // UI Components
-import { SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Send } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import EmojiPicker from '@/components/ui/emoji';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Textarea } from '@/components/ui/textarea';
+import { Send } from 'lucide-react';
 
-// Message interface based on the database model
 interface Message {
   id: string;
   content: string;
@@ -20,7 +20,6 @@ interface Message {
   created_at: string; // Expected as a datetime string
 }
 
-// Props interface for ChatView component
 interface Requirement {
   chatId: string;
   adminId: string;
@@ -68,7 +67,7 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
         // Fetch initial messages for the given chatId
         const res = await dbClient.query(
           `SELECT * FROM Message WHERE chat_id = ${chatId} ORDER BY created_at ASC`
-        )
+        );
         const initialMessages = res?.[0] || [];
         setMessages(initialMessages);
 
@@ -81,9 +80,7 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
           if (action === 'CREATE') {
             setMessages((prev) => [...prev, result]);
           } else if (action === 'UPDATE') {
-            setMessages((prev) =>
-              prev.map((msg) => (msg.id === result.id ? result : msg))
-            );
+            setMessages((prev) => prev.map((msg) => (msg.id === result.id ? result : msg)));
           } else if (action === 'DELETE') {
             setMessages((prev) => prev.filter((msg) => msg.id !== result.id));
           }
@@ -111,7 +108,7 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
     if (!inputValue.trim()) return;
 
     try {
-      // ایجاد پیام جدید در جدول Message
+      // Create a new message in the Message table
       await dbClient.create('Message', {
         chat_id: chatId,
         sender_id: adminId,
@@ -119,8 +116,8 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
         created_at: new Date(),
       });
 
-      // به‌روزرسانی وضعیت چت از pending به active
-      // شرط admin_id هم اضافه شده تا فقط چت مربوط به ادمین جاری تغییر وضعیت بده
+      // Update chat status from pending to active
+      // Added admin_id condition to change the status of the current admin's chat only
       await dbClient.query(
         `UPDATE Chat SET status = 'active', admin_id = '${adminId}' WHERE id = ${chatId} AND status = 'pending'`
       );
@@ -130,6 +127,10 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
     }
   };
 
+  // Function to handle selected emoji
+  const handleEmojiSelect = (emoji: string) => {
+    setInputValue((prev) => prev + emoji);
+  };
 
   // Render loading state if not connected yet
   if (!isAuthDone) {
@@ -157,39 +158,41 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
               <div className="space-y-4 p-4">
                 {messages.length > 0 ? (
                   messages.map((message) => {
-                    // بررسی می‌کنیم که آیا شناسه فرستنده در لیست ادمین‌ها موجود است
-                    const isAdmin = adminsList.some(admin => admin.id === message.sender_id);
-                    // در صورت وجود، اطلاعات ادمین مربوطه را دریافت می‌کنیم
-                    const adminDetails = adminsList.find(admin => admin.id === message.sender_id);
+                    // Check if the sender ID is in the admin list
+                    const isAdmin = adminsList.some((admin) => admin.id === message.sender_id);
+                    // If exists, get the corresponding admin details
+                    const adminDetails = adminsList.find((admin) => admin.id === message.sender_id);
                     return (
                       <div
                         key={message.id}
                         className={`flex ${isAdmin ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`flex items-start max-w-[70%] ${isAdmin ? 'flex-row-reverse' : 'flex-row'
-                            }`}
+                          className={`flex items-start max-w-[70%] ${
+                            isAdmin ? 'flex-row-reverse' : 'flex-row'
+                          }`}
                         >
                           <Avatar className="w-8 h-8">
                             <AvatarImage
                               src={
                                 isAdmin
-                                  ? (adminDetails?.imageUrl || '/admin-avatar.png')
+                                  ? adminDetails?.imageUrl || '/admin-avatar.png'
                                   : '/user-avatar.png'
                               }
                             />
                             <AvatarFallback>
                               {isAdmin
-                                ? (adminDetails ? adminDetails.firstName.charAt(0) : 'A')
+                                ? adminDetails
+                                  ? adminDetails.firstName.charAt(0)
+                                  : 'A'
                                 : 'U'}
                             </AvatarFallback>
                           </Avatar>
                           <div className={`mx-2 ${isAdmin ? 'text-right' : 'text-left'}`}>
                             <div
-                              className={`rounded-lg p-2 ${isAdmin
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted'
-                                }`}
+                              className={`rounded-lg p-2 ${
+                                isAdmin ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                              }`}
                             >
                               {message.content}
                             </div>
@@ -202,16 +205,15 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
                     );
                   })
                 ) : (
-                  <p className="text-center text-sm text-muted-foreground">
-                    No messages yet!
-                  </p>
+                  <p className="text-center text-sm text-muted-foreground">No messages yet!</p>
                 )}
               </div>
             </ScrollArea>
 
-            {/* Message input area */}
-            <div className="p-4 border-t">
+            {/* Message input area with emoji – Emoji component without removing previous code */}
+            <div className="p-4 border-t relative">
               <form onSubmit={sendMessage} className="flex items-center space-x-2">
+                <EmojiPicker onSelect={handleEmojiSelect} />
                 <Textarea
                   placeholder="Type your message here..."
                   className="flex-grow"
