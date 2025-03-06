@@ -1,9 +1,10 @@
 "use client";
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import sdb from "@/db/surrealdb";
+import { useEffect, useState } from "react";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Uuid } from "surrealdb";
-
 const ChartCard = () => {
   const [data, setData] = useState<{ name: string; total: number }[]>([]);
 
@@ -79,38 +80,45 @@ const ChartCard = () => {
 
   return (
     <div className="col-span-4">
-      <div className="h-full space-y-4 rounded-xl border bg-card p-6 text-card-foreground shadow">
-        <div className="flex flex-col space-y-2">
-            <h3 className="text-xl font-semibold">Chat Statistics</h3>
-        </div>
-        <div className="h-[300px]">
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle>Chat Statistics</CardTitle>
+        </CardHeader>
+
+        <CardContent className="h-[300px]">
+          <Separator className="mb-4" />
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data}>
               <XAxis
-              dataKey="name"
-              stroke="#888888"
-              fontSize={12}
-              tickLine={false}
-              axisLine={false}
+                dataKey="name"
+                stroke="#888888"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
               />
               <YAxis
-              stroke="#888888"
-              fontSize={12}
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(value) => `${value}`}
-              label={{ value: 'Number of Chats', angle: -90, position: 'insideLeft', fontSize: 12 }}
+                stroke="#888888"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(value) => `${value}`}
+                label={{
+                  value: "Number of Chats",
+                  angle: -90,
+                  position: "insideLeft",
+                  fontSize: 12,
+                }}
               />
               <Bar
-              dataKey="total"
-              fill="currentColor"
-              radius={[4, 4, 0, 0]}
-              className="fill-primary"
+                dataKey="total"
+                fill="currentColor"
+                radius={[4, 4, 0, 0]}
+                className="fill-primary"
               />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

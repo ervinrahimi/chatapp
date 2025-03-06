@@ -4,6 +4,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TabsSectionClient from "./tabsSectionClient";
 import ChartCard from "./ChartCard";
 import AdminCardServer from "./AdminCardServer";
+import { Suspense } from "react";
+import SkeletonAdmin from "./skeleton/adminSkeleton";
+import ChartSkeleton from "./skeleton/chartSkeleton";
 
 const content = {
   tabs: {
@@ -20,8 +23,12 @@ export default function TabsSectionServer() {
       <TabsContent value="overview" className="space-y-4">
         <TabsSectionClient />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <ChartCard />
-          <AdminCardServer />
+          <Suspense fallback={<ChartSkeleton />}>
+            <ChartCard />
+          </Suspense>
+          <Suspense fallback={<SkeletonAdmin />}>
+            <AdminCardServer />
+          </Suspense>
         </div>
       </TabsContent>
     </Tabs>

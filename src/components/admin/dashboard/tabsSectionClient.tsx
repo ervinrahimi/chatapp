@@ -1,14 +1,15 @@
 // TabsSectionClient.jsx
 "use client";
-import { useEffect, useState } from "react";
 import {
   Card,
-  CardDescription,
+  CardContent,
   CardHeader,
-  CardTitle,
+  CardTitle
 } from "@/components/ui/card";
 import sdb from "@/db/surrealdb";
+import { useEffect, useState } from "react";
 import { Uuid } from "surrealdb";
+import CardsSkeleton from "./skeleton/CardsSkeleton";
 
 const initialCards = [
   { title: "Chats", description: "0" },
@@ -18,7 +19,7 @@ const initialCards = [
 
 export default function TabsSectionClient() {
   const [cards, setCards] = useState(initialCards);
-
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let queryId = Uuid || null;
 
@@ -44,6 +45,7 @@ export default function TabsSectionClient() {
         { title: "Customers", description: chatUserCount.toString() },
         { title: "Pending Chats", description: pendingCount.toString() },
       ]);
+      setLoading(false);
     };
 
     // Function to load chats and subscribe to live updates
@@ -86,14 +88,18 @@ export default function TabsSectionClient() {
     };
   }, []);
 
+  if (loading) {
+    return <CardsSkeleton />;
+  }
+
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {cards.map((card, index) => (
-        <Card key={index}>
+        <Card key={index} className="relative">
           <CardHeader>
             <CardTitle>{card.title}</CardTitle>
-            <CardDescription>{card.description}</CardDescription>
           </CardHeader>
+          <CardContent>{card.description}</CardContent>
         </Card>
       ))}
     </div>
