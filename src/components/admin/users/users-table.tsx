@@ -60,6 +60,7 @@ import {
 import sdb from "@/db/surrealdb";
 import { Uuid } from "surrealdb";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import TableSkeleton from "@/components/tableSkeleton";
 
 interface Customer {
   id: string;
@@ -261,11 +262,6 @@ export function UserManagementTable() {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(customer.id)}
-              >
-                Copy customer ID
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               {/* Edit customer */}
               <Sheet>
@@ -377,40 +373,7 @@ export function UserManagementTable() {
   });
 
   if (isLoading) {
-    return (
-      <div className="w-full">
-        <div className="flex items-center py-4">
-          <Skeleton className="h-10 w-[250px]" />
-          <Skeleton className="ml-auto h-10 w-[100px]" />
-        </div>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              {Array.from({ length: 5 }).map((_, index) => (
-                <TableRow key={index}>
-                  {Array.from({ length: 5 }).map((_, cellIndex) => (
-                    <TableHead key={cellIndex}>
-                      <Skeleton className="h-6 w-full" />
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {Array.from({ length: 5 }).map((_, index) => (
-                <TableRow key={index}>
-                  {Array.from({ length: 5 }).map((_, cellIndex) => (
-                    <TableCell key={cellIndex}>
-                      <Skeleton className="h-6 w-full" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-    );
+    return <TableSkeleton />;
   }
 
   return (

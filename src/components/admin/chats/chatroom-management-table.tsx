@@ -9,7 +9,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -57,6 +57,7 @@ import { ArrowUpDown, ChevronDown, MoreHorizontal, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Uuid } from "surrealdb";
 import { ChatView } from "./ChatView";
+import TableSkeleton from "@/components/tableSkeleton";
 
 export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
   // State for chat rooms data and loading status
@@ -182,7 +183,15 @@ export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
     () => [
       {
         accessorKey: "user",
-        header: "Customer Name",
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Customer Name
+            <ArrowUpDown className="mr-2 h-4 w-4" />
+          </Button>
+        ),
         cell: ({ row }) => <div>{row.getValue("user")}</div>,
       },
       {
@@ -225,6 +234,7 @@ export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
         ),
         cell: ({ row }) => <div>{row.getValue("createdAt")}</div>,
       },
+
       {
         id: "actions",
         cell: ({ row }) => {
@@ -315,14 +325,7 @@ export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
   });
 
   if (isLoading) {
-    return (
-      <div className="w-full">
-        <div className="py-4">
-          <Skeleton className="h-10 w-[250px]" />
-        </div>
-        <Skeleton className="h-40 w-full" />
-      </div>
-    );
+    return <TableSkeleton />;
   }
 
   return (
