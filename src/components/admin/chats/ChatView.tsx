@@ -132,6 +132,13 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
     setInputValue((prev) => prev + emoji);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(e as any); // cast برای رفع مشکل تایپ
+    }
+  };
+
   // Render loading state if not connected yet
   if (!isAuthDone) {
     return (
@@ -219,6 +226,7 @@ export function ChatView({ chatId, adminId, adminsList }: Requirement) {
                   className="flex-grow"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
                 />
                 <Button size="icon" type="submit">
                   <Send className="h-4 w-4" />
