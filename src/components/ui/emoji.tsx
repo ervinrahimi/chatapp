@@ -9,7 +9,7 @@ interface EmojiPickerProps {
 }
 
 // List of emojis without categorization and filtering
-const emojis: string[] = ['😀', '😃', '😄', '🐶', '🐱', '🐭', '🍎', '🍔', '🍕'];
+const emojis: string[] = ['😊', '😐', '🤔', '☹️', '😍', '😴', '😡', '😤', '🍕', '❤️', '🌹'];
 
 const EmojiPicker: FC<EmojiPickerProps> = ({ onSelect }) => {
   return (
