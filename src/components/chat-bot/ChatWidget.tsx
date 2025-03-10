@@ -53,6 +53,7 @@ export function ChatWidget({ adminsList }: AdminsList) {
   const [chatStatus, setChatStatus] = React.useState('viewed');
   const [chat, setChat] = React.useState<any>(null);
   const [message, setMessage] = React.useState('');
+  const [isCooldown, setIsCooldown] = React.useState(false); // اضافه شده
 
   // Ref to track end of messages for scrolling
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -179,6 +180,7 @@ export function ChatWidget({ adminsList }: AdminsList) {
   // Handle sending a new message
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCooldown) return; // اگر در حالت cooldown هستیم، ارسال پیام انجام نشود
     if (!message.trim() || !chatUserId || !chatId) return;
 
     try {
@@ -189,6 +191,10 @@ export function ChatWidget({ adminsList }: AdminsList) {
         created_at: new Date(),
       });
       setMessage('');
+      setIsCooldown(true); // شروع حالت cooldown
+      setTimeout(() => {
+        setIsCooldown(false);
+      }, 30000);
       setTimeout(scrollToBottom, 0);
     } catch (err) {
       console.error('Error sending message:', err);
@@ -381,7 +387,7 @@ export function ChatWidget({ adminsList }: AdminsList) {
               onChange={(e) => setMessage(e.target.value)}
               className="flex-1"
             />
-            <Button type="submit" size="icon" variant="secondary">
+            <Button type="submit" size="icon" variant="secondary" disabled={isCooldown}>
               <Send className="h-4 w-4" />
             </Button>
           </form>
