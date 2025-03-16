@@ -46,7 +46,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -56,18 +55,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-// Connect to the database using the sdb function (settings in page.tsx)
+import TableSkeleton from "@/components/admin/tableSkeleton";
 import sdb from "@/db/surrealdb";
-import { Uuid } from "surrealdb";
+import type { Customer } from "@/types/admin";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import TableSkeleton from "@/components/tableSkeleton";
-
-interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  created_at: string;
-}
+import { Uuid } from "surrealdb";
 
 export function UserManagementTable() {
   // State for database connection

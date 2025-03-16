@@ -16,69 +16,33 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import sdb from "@/db/surrealdb";
+import type { AdminWithCount } from "@/types/admin";
 
 import { useEffect, useState } from "react";
 import { Uuid } from "surrealdb";
+import { FetchAdminsData } from "./FetchData";
 
-interface Admin {
-  id: string;
-  firstName: string;
-  lastName: string;
-  emailAddresses: string[];
-  imageUrl?: string;
-}
-// New type extending Admin with a matching count
-interface AdminWithCount extends Admin {
-  matchingCount: number;
-}
-
-interface AdminCardClientProps {
-  adminsList: Admin[];
-}
-
-export default function AdminCardClient({ adminsList }: AdminCardClientProps) {
-  // Initialize state for top admins with matching count
-  const [topAdmins, setTopAdmins] = useState<AdminWithCount[]>(
-    adminsList.map((admin) => ({ ...admin, matchingCount: 0 }))
-  );
+export default function TopAdminsClient({
+  initialAdmins,
+  adminsList,
+}: {
+  initialAdmins: AdminWithCount[];
+  adminsList: AdminWithCount[];
+}) {
+  const [topAdmins, setTopAdmins] = useState<AdminWithCount[]>(initialAdmins);
 
   useEffect(() => {
     let queryId: Uuid | null = null;
-
-    const fetchData = async () => {
-      try {
-        const db = await sdb();
-        const res = await db.query(`SELECT admin_id FROM Chat`);
-        const admins = Array.isArray(res?.[0]) ? res[0] : [];
-        const adminIds = admins.map((admin: any) => admin.admin_id);
-
-        const freqMap: Record<string, number> = {};
-        adminIds.forEach((id: string) => {
-          freqMap[id] = (freqMap[id] || 0) + 1;
-        });
-
-        const adminsWithCount: AdminWithCount[] = adminsList.map((admin) => ({
-          ...admin,
-          matchingCount: freqMap[admin.id] || 0,
-        }));
-        const sortedTopAdmins = adminsWithCount
-          .sort((a, b) => b.matchingCount - a.matchingCount)
-          .slice(0, 5);
-
-        setTopAdmins(sortedTopAdmins);
-      } catch (error) {
-        console.error("Error fetching admin data:", error);
-      }
-    };
 
     const subscribeToLiveUpdates = async () => {
       try {
         const db = await sdb();
         queryId = await db.live("Chat");
-        db.subscribeLive(queryId, (action: string, result: any) => {
-          if (action === "CLOSE") return;
+
+        db.subscribeLive(queryId, async (action, result) => {
           if (["CREATE", "UPDATE", "DELETE"].includes(action)) {
-            fetchData();
+            const updatedCounts = await FetchAdminsData(adminsList);
+            setTopAdmins(updatedCounts);
           }
         });
       } catch (error) {
@@ -86,16 +50,15 @@ export default function AdminCardClient({ adminsList }: AdminCardClientProps) {
       }
     };
 
-    fetchData();
     subscribeToLiveUpdates();
 
     return () => {
       if (queryId) {
-        sdb().then((db) => {
-          db.kill(queryId!).catch((err) =>
-            console.error("Error killing live query:", err)
-          );
-        });
+        sdb().then((db) =>
+          db
+            .kill(queryId!)
+            .catch((err) => console.error("Error killing live query:", err))
+        );
       }
     };
   }, [adminsList]);

@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import TableSkeleton from "@/components/admin/tableSkeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,7 +30,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -57,7 +57,6 @@ import { ArrowUpDown, ChevronDown, MoreHorizontal, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Uuid } from "surrealdb";
 import { ChatView } from "./ChatView";
-import TableSkeleton from "@/components/tableSkeleton";
 
 export function ChatRoomManagementTable({ adminsList, adminId }: Requirement) {
   // State for chat rooms data and loading status
